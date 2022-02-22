@@ -49,7 +49,7 @@ class domain
 
     void setLeft(const realDVec_t & left) { _left=left;updateLBox();}
     void setRight(const realDVec_t & right){_right=right;updateLBox();};
-
+    
     private:
 
     void updateLBox();

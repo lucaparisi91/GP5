@@ -66,16 +66,21 @@ TEST(fft,fftw)
         }
 
     }
+    else
+    {
+
+    }
 
 }
 
 
-
-TEST(fft,fftw_derivative)
+TEST(fft, derivative)
 {
-    realDVec_t left {-0.5,-0.5,-0.5};
-    realDVec_t right {0.5,0.5,0.5};
-    intDVec_t N { 100, 100, 100};
+    realDVec_t left {-1,-0.5,-0.5};
+    realDVec_t right {1,0.5,0.5};
+    intDVec_t N { 200, 100, 100};
+
+    p3dfft::setup();
 
     auto domain = std::make_shared<gp::domain>( left,right );
     auto globalMesh = std::make_shared<gp::mesh>( N);
@@ -86,43 +91,68 @@ TEST(fft,fftw_derivative)
     MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
-    auto discr = createUniformDiscretization( domain, globalMesh ,intDVec_t{numProcs,1,1}, comm);
+    std::shared_ptr<gp::fourierTransform<complex_t,complex_t > > fftOp;
+    std::shared_ptr<gp::discretization> discrReal, discrFourier;
+    
+    if (numProcs == 1)
+    {
+        
+        discrReal = createUniformDiscretization( domain, globalMesh ,intDVec_t{numProcs,1,1}, comm);
+        fftOp=std::make_shared<gp::fftwFourierTransform<complex_t,complex_t> >(discrReal,1);
+        discrFourier=discrReal;
+    }
+    else
+    {
+        auto _fftOp=std::make_shared<gp::p3dfftFourierTransform<complex_t,complex_t>  >( domain,globalMesh,intDVec_t{numProcs,1,1},comm);
 
-    const auto & shape= discr->getLocalMesh()->shape();
-    const auto & offset= discr->getLocalMesh()->getGlobalOffset();
+        discrReal = _fftOp->getDiscretizationRealSpace();
+        discrFourier = _fftOp->getDiscretizationFourierSpace();
+        fftOp=_fftOp;
+    }
 
-    tensor_t field(shape[0],shape[1],shape[2],1);
-    tensor_t fieldK(shape[0],shape[1],shape[2],1);
-    tensor_t fieldL(shape[0],shape[1],shape[2],1);
+    
+    const auto & globalShape= discrReal->getGlobalMesh()->shape();
+
+    const auto & shapeReal= discrReal->getLocalMesh()->shape();
+    const auto & shapeFourier= discrFourier->getLocalMesh()->shape();
+    
+    const auto & offsetReal= discrReal->getLocalMesh()->getGlobalOffset();  
+    const auto & offsetFourier= discrFourier->getLocalMesh()->getGlobalOffset();
+
+
+
+
+    tensor_t field(shapeReal[0],shapeReal[1],shapeReal[2],1);
+    tensor_t fieldK(shapeFourier[0],shapeFourier[1],shapeFourier[2],1);
+    tensor_t fieldL(shapeReal[0],shapeReal[1],shapeReal[2],1);
+    tensor_t K2(shapeFourier[0],shapeFourier[1],shapeFourier[2],1);
 
     field.setConstant(0);
     fieldK.setConstant(0);
     fieldL.setConstant(0);
 
-    auto KX = momentums(discr,0,1);
-    auto KY = momentums(discr,1,1);
-    auto KZ = momentums(discr,2,1);
+    auto KX = momentums(discrFourier,0,1);
+    auto KY = momentums(discrFourier,1,1);
+    auto KZ = momentums(discrFourier,2,1);
+
+    K2 = KX*KX + KY*KY + KZ*KZ;
 
 
-    tensor_t K2 = KX*KX + KY*KY + KZ*KZ;
+    gp::initGaussian( 0.05 , discrReal,field,0);
 
-    gp::initGaussian( 0.1 , discr,field,0);
+        
+    fftOp->apply(field, fieldK,gp::FFT_DIRECTION::FORWARD);
+    fieldK=-fieldK*K2;
 
-    if (numProcs == 1)
-    {
-        gp::fftwFourierTransform<complex_t,complex_t> fftOp(discr,1);
+    fftOp->apply(fieldK, fieldL, gp::FFT_DIRECTION::BACKWARD);
 
-        fftOp.apply(field, fieldK,gp::FFT_DIRECTION::FORWARD);
-        fieldK=-fieldK*K2;
+    fieldL=fieldL* (1./complex_t(globalShape[0] * globalShape[1] * globalShape[2],0) );
 
-        fftOp.apply(fieldK, fieldL, gp::FFT_DIRECTION::BACKWARD);
 
-        fieldL=fieldL* (1./complex_t(N[0] * N[1] * N[2],0) );
+    save(field,"gaussian.hdf5",*discrReal);
+    save(fieldL,"gaussianL.hdf5",*discrReal);
 
-    }
+    fftOp = NULL;
 
-    save(field,"gaussian.hdf5",*discr);
-    save(fieldL,"gaussianL.hdf5",*discr);
-    
-
+    p3dfft::cleanup();
 }

@@ -9,36 +9,46 @@ namespace gp
         _discr=std::make_shared<discretization_t>();
         _discr->setDomain(globalDomain);
         _discr->setGlobalMesh(globalMesh);
+        _discr->setCommunicator(comm);
 
         const auto & globalShape = globalMesh->shape() ;
-
 
         _discr2=std::make_shared<discretization_t>();
 
         _discr2->setGlobalMesh(globalMesh);
-
-
+        _discr2->setDomain(globalDomain);
+        _discr2->setCommunicator(comm);
+        
         int type_ids1[3] = { p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D};
         int type_ids2[3] = {p3dfft::CFFT_BACKWARD_D,p3dfft::CFFT_BACKWARD_D,p3dfft::CFFT_BACKWARD_D};
 
-        int pdims[] = { 1 , 1 , 2 };
+        int pdims[] = { processors[0] , processors[1] , processors[2] };
         int mem_order1[] = {0,1,2};
-        int mem_order2[] = {1,2,0};
+        int mem_order2[] = {0,1,2};
+
 
         int dmap1[] = {0,1,2};
-        int dmap2[] = {1,2,0};
+        int dmap2[] = {0,1,2};
+        
 
         int gdims[] = { globalShape[0] , globalShape[1] , globalShape[2] };
 
 
-        Pgrid = p3dfft_init_proc_grid(pdims,comm);
-        
+       
+
         auto type_forward = p3dfft_init_3Dtype(type_ids1);
+
         auto type_backward = p3dfft_init_3Dtype(type_ids2);
+        
+         Pgrid = p3dfft_init_proc_grid(pdims,comm);
+
 
         Xpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap1,mem_order1);
+        
+        
         Zpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap2,mem_order2);
-
+        
+        
 
         trans_f = p3dfft_plan_3Dtrans(Xpencil,Zpencil,type_forward);
         trans_b = p3dfft_plan_3Dtrans(Zpencil,Xpencil,type_backward);
@@ -50,6 +60,9 @@ namespace gp
             localShape[ mem_order1[i] ] = Xpencil->Ldims[i];
             offset2[ mem_order2[i] ] = Zpencil->GlobStart[i];
             localShape2[ mem_order2[i] ] = Zpencil->Ldims[i];
+
+            //std::cout << i << " "<<localShape2[i] << std::endl;
+
         }
 
 

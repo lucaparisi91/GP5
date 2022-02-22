@@ -104,20 +104,20 @@ tensor_t momentums(std::shared_ptr<discretization> discr,int d, int nComponents)
     const auto & shape = discr->getLocalMesh()->shape();
     const auto & offset = discr->getLocalMesh()->getGlobalOffset();
 
-
     tensor_t K( shape[0],shape[1],shape[2],nComponents);
-
 
     for(int i=0;i<shape[0];i++)
         for(int j=0;j<shape[1];j++)
             for(int k=0;k<shape[2];k++)
                 {
-                    int iG = i + offset[d];
+                    intDVec_t index{i,j,k};
+                    
+                    int iG = index[d] + offset[d];
                     for(int iC=0;iC<nComponents;iC++)
                     {
                         if ( globalShape[d] % 2 == 0)
                         {
-                            if (i <globalShape[d]/2)
+                            if (iG <globalShape[d]/2)
                             {
                                 K(i,j,k,iC)=delta * iG;
                             }
@@ -128,7 +128,7 @@ tensor_t momentums(std::shared_ptr<discretization> discr,int d, int nComponents)
                         }
                         else
                         {
-                            if (i <=(globalShape[d]-1)/2)
+                            if (iG <=(globalShape[d]-1)/2)
                             {
                                 K(i,j,k,iC)=delta * iG;
                             }

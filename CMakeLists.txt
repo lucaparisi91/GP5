@@ -13,7 +13,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 
 # optimization level
 if ( ${CMAKE_BUILD_TYPE} MATCHES Debug)
-  set(CMAKE_CXX_COMPILE_FLAGS_ADDITIONAL " -g -pg -Wfatal-errors")
+  set(CMAKE_CXX_COMPILE_FLAGS_ADDITIONAL " -g -pg -O0 -Wfatal-errors")
   set(CMAKE_CXX_LINK_FLAGS_ADDITIONAL " -g -pg ")
 elseif (${CMAKE_BUILD_TYPE} MATCHES Release) 
   set(CMAKE_CXX_COMPILE_FLAGS_ADDITIONAL " -DNDEBUG -Wfatal-errors -O3 ")

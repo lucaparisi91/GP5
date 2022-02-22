@@ -8,17 +8,28 @@ namespace gp
 {
     enum FFT_DIRECTION { FORWARD=0, BACKWARD=1 };
 
-
     template<class T1,class T2>
-    class p3dfftFourierTransform
+    class fourierTransform
     {
         public:
 
         using discretization_t = discretization;
         using mesh_t = mesh;
         using domain_t = domain;
-        
 
+        virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir )=0;
+
+
+    };
+
+
+    template<class T1,class T2>
+    class p3dfftFourierTransform : public fourierTransform<T1,T2>
+    {
+        public:
+        using discretization_t = discretization;
+        using mesh_t = mesh;
+        using domain_t = domain;
 
         
         p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm  );
@@ -50,13 +61,14 @@ namespace gp
 
 
     template<class T1,class T2>
-    class fftwFourierTransform
+    class fftwFourierTransform  : public fourierTransform<T1,T2>
     {
         public:
 
         using discretization_t = discretization;
         using mesh_t = mesh;
         using domain_t = domain;
+
         
         fftwFourierTransform( std::shared_ptr<discretization_t> discr, int nComponents  );
 
