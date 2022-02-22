@@ -2,6 +2,7 @@
 #include <mpi.h>
 #include <p3dfft.h>
 
+
 int main(int argc,char** argv)
 {
     std::array<real_t,3> lBox = { 1, 1, 1 } ;
@@ -18,8 +19,6 @@ int main(int argc,char** argv)
     MPI_Init( & argc, &argv);
 
     p3dfft::setup();
-
-
 
 
     int type_ids1[3] = {p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D};
@@ -51,7 +50,7 @@ int main(int argc,char** argv)
 
     auto trans_f = p3dfft_plan_3Dtrans(Xpencil,Zpencil,type_forward);
 
-    
+  
     auto trans_b = p3dfft_plan_3Dtrans(Zpencil,Xpencil,type_backward);
 
 
@@ -77,16 +76,18 @@ int main(int argc,char** argv)
                 real_t r = std::sqrt( x*x + y*y + z*z);
                 field(i,j,k,0)=exp(-alpha * x*x);
             }
-    
+
     p3dfft_exec_3Dtrans_double(trans_f,(real_t * )field.data(),(real_t *)fieldFourier.data(),0);
 
     p3dfft_exec_3Dtrans_double(trans_b,(real_t * )fieldFourier.data(),(real_t *)field.data(),0);
-
-
+    
+    
     p3dfft_free_data_grid(Xpencil);
     p3dfft_free_data_grid(Zpencil);
     p3dfft_free_proc_grid(Pgrid);
     p3dfft_cleanup();
+
+
 
     MPI_Finalize();
 
