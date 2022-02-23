@@ -1,4 +1,8 @@
 
+#ifndef FOURIER_TRANSFORM_H
+#define FOURIER_TRANSFORM_H
+
+
 #include "traits.h"
 #include "geometry.h"
 #include "p3dfft.h"
@@ -19,7 +23,8 @@ namespace gp
 
         virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir )=0;
 
-
+        virtual std::shared_ptr<discretization_t> getDiscretizationRealSpace()=0;
+        virtual std::shared_ptr<discretization_t> getDiscretizationFourierSpace()=0;
     };
 
 
@@ -34,14 +39,14 @@ namespace gp
         
         p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm  );
         
-        virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir );
+        virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir ) override;
 
 
         ~p3dfftFourierTransform();
 
-        auto getDiscretizationRealSpace() {return _discr;}
-        auto getDiscretizationFourierSpace() {return _discr2;}
 
+        virtual std::shared_ptr< discretization_t > getDiscretizationRealSpace() override {return _discr;}
+        virtual std::shared_ptr< discretization_t > getDiscretizationFourierSpace() override {return _discr2;}
 
         private:
 
@@ -76,9 +81,8 @@ namespace gp
 
         ~fftwFourierTransform();
 
-
-        auto getDiscretizationRealSpace() {return _discr;}
-        auto getDiscretizationFourierSpace() {return _discr2;}
+        virtual std::shared_ptr< discretization_t > getDiscretizationRealSpace() override {return _discr;}
+        virtual std::shared_ptr< discretization_t > getDiscretizationFourierSpace() override {return _discr2;}
 
 
         private:
@@ -92,4 +96,40 @@ namespace gp
 
     };
 
+
+
+    template<class T1,class T2>
+    class fourierTransformCreator
+    {
+        public:
+
+        fourierTransformCreator();
+
+        std::shared_ptr<fourierTransform<T1,T2> > create();
+
+        void setDomain(std::shared_ptr<domain> newDomain ) {_domain=newDomain;}
+
+        void setGlobalMesh(std::shared_ptr<mesh> newMesh ) {_globalMesh=newMesh;}
+
+
+        void setNComponents(int newNComponents ) {_nComponents=newNComponents;}
+
+        void setProcessorGrid(const intDVec_t & grid ) {_processorGrid=grid;}
+
+        void setCommunicator( const MPI_Comm & comm_) {_comm=comm_;}
+
+        private:
+
+        std::shared_ptr<domain> _domain;
+        std::shared_ptr<mesh> _globalMesh;
+        intDVec_t _processorGrid;
+        int _nComponents;
+
+        MPI_Comm _comm;
+
+        
+    };
+
 };
+
+#endif

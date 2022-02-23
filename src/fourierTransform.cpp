@@ -14,7 +14,7 @@ namespace gp
         const auto & globalShape = globalMesh->shape() ;
 
         _discr2=std::make_shared<discretization_t>();
-
+        
         _discr2->setGlobalMesh(globalMesh);
         _discr2->setDomain(globalDomain);
         _discr2->setCommunicator(comm);
@@ -189,7 +189,46 @@ fftwFourierTransform<T1,T2>::~fftwFourierTransform()
 
 
 
+
+
+template<class T1,class T2>
+std::shared_ptr<fourierTransform<T1,T2> > fourierTransformCreator<T1,T2>::create()
+    {
+        int numProcs,rank;
+
+        MPI_Comm_size (_comm, &numProcs);
+        MPI_Comm_rank (_comm, &rank);
+
+        if (numProcs == 1)
+        {
+            auto discrReal = createUniformDiscretization( _domain, _globalMesh ,_processorGrid,_comm);
+            auto fftOp=std::make_shared<gp::fftwFourierTransform<T1,T2> >(discrReal,_nComponents);
+            return fftOp;
+        }
+        else
+        {
+            auto fftOp=std::make_shared<gp::p3dfftFourierTransform<T1,T2>  >( _domain,_globalMesh,_processorGrid,_comm);
+
+            return fftOp;
+        }
+
+
+    };
+
+template<class T1,class T2>
+fourierTransformCreator<T1,T2>::fourierTransformCreator()
+{
+    _domain = NULL;
+    _globalMesh = NULL;
+    _processorGrid = {-1,-1,-1};
+
+    _comm = MPI_COMM_WORLD;
+}
+
+
+
+
 template class p3dfftFourierTransform<complex_t,complex_t> ;
 template class fftwFourierTransform<complex_t,complex_t> ;
-
+template class fourierTransformCreator<complex_t,complex_t>;
 };
