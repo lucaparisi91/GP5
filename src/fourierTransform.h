@@ -11,7 +11,7 @@
 namespace gp
 {
     enum FFT_DIRECTION { FORWARD=0, BACKWARD=1 };
-
+    
     template<class T1,class T2>
     class fourierTransform
     {
@@ -25,6 +25,16 @@ namespace gp
 
         virtual std::shared_ptr<discretization_t> getDiscretizationRealSpace()=0;
         virtual std::shared_ptr<discretization_t> getDiscretizationFourierSpace()=0;
+
+
+        virtual int getNComponents() const {return _nComponents;};
+        virtual void setNComponents( int n) { _nComponents=n;};
+
+        private:
+
+        int _nComponents;
+
+
     };
 
 
@@ -37,8 +47,9 @@ namespace gp
         using domain_t = domain;
 
         
-        p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm  );
+        p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm , int nComponents=1 );
         
+
         virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir ) override;
 
 
@@ -60,7 +71,7 @@ namespace gp
         Grid* Xpencil;
         Grid* Zpencil;
         int Pgrid;
-
+        
 
     };
 
@@ -75,7 +86,7 @@ namespace gp
         using domain_t = domain;
 
         
-        fftwFourierTransform( std::shared_ptr<discretization_t> discr, int nComponents  );
+        fftwFourierTransform( std::shared_ptr<discretization_t> discr, int nComponents=1  );
 
         virtual void apply(  tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir );
 
@@ -93,6 +104,7 @@ namespace gp
         std::shared_ptr<discretization_t> _discr2;
         fftw_plan planForward;
         fftw_plan planBackward;
+
 
     };
 
@@ -112,22 +124,21 @@ namespace gp
         void setGlobalMesh(std::shared_ptr<mesh> newMesh ) {_globalMesh=newMesh;}
 
 
-        void setNComponents(int newNComponents ) {_nComponents=newNComponents;}
-
         void setProcessorGrid(const intDVec_t & grid ) {_processorGrid=grid;}
 
         void setCommunicator( const MPI_Comm & comm_) {_comm=comm_;}
+
+        void setNComponents(int n) {_nComponents=n;}
 
         private:
 
         std::shared_ptr<domain> _domain;
         std::shared_ptr<mesh> _globalMesh;
         intDVec_t _processorGrid;
-        int _nComponents;
 
         MPI_Comm _comm;
+        int _nComponents;
 
-        
     };
 
 };

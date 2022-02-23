@@ -4,8 +4,10 @@ namespace gp
 {
 
     template<class T1, class T2>
-    p3dfftFourierTransform<T1,T2>::p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm  )
+    p3dfftFourierTransform<T1,T2>::p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm, int nComponents  )
         {
+        this->setNComponents(nComponents);
+
         _discr=std::make_shared<discretization_t>();
         _discr->setDomain(globalDomain);
         _discr->setGlobalMesh(globalMesh);
@@ -88,13 +90,24 @@ namespace gp
     template<class T1,class T2>
     void p3dfftFourierTransform<T1,T2>::apply(tensor_t & field,tensor_t & field2,FFT_DIRECTION direction)
     {
+        auto fftSize=getDiscretizationFourierSpace()->getLocalMesh()->size();
+        auto realSize=getDiscretizationRealSpace()->getLocalMesh()->size();
+
         if (direction == FFT_DIRECTION::FORWARD)
          {
-             p3dfft_exec_3Dtrans_double(trans_f,(real_t * )field.data(),(real_t *)field2.data(),0);
+             for(int iComp=0;iComp<this->getNComponents();iComp++)
+            {
+                p3dfft_exec_3Dtrans_double(trans_f,( (real_t * )field.data() ) + iComp*realSize*2 ,( (real_t *)field2.data() ) + iComp*fftSize*2,0);
+            }
+             
          }
         else if (direction == FFT_DIRECTION::BACKWARD)
         {
-            p3dfft_exec_3Dtrans_double(trans_b,(real_t * )field.data(),(real_t *)field2.data(),0);
+             for(int iComp=0;iComp<this->getNComponents();iComp++)
+            {
+                p3dfft_exec_3Dtrans_double(trans_b,( (real_t * )field.data() ) + iComp*realSize*2 ,( (real_t *)field2.data() ) + iComp*fftSize*2,0);
+            }
+           
         }
         else
         {
@@ -110,6 +123,8 @@ fftwFourierTransform<T1,T2>::fftwFourierTransform( std::shared_ptr<discretizatio
 _discr(discr),
 _discr2(discr)
 {
+    this->setNComponents(nComponents);
+
     const auto & shape=_discr->getLocalMesh()->shape();
 
     tensor_t initField( shape[0] , shape[1], shape[2] ,nComponents  );
@@ -117,14 +132,14 @@ _discr2(discr)
     initField.setConstant(0);
 
     init(initField);
-
+    
 }
 
 fftw_plan createC2CFFTWPlan( tensor_t & spatialData , tensor_t & fourierData , FFT_DIRECTION direction  )
 {
     const auto & dimensions = spatialData.dimensions();
     
-    int nComponents=spatialData.dimensions()[DIMENSIONS];
+    int nComponents=1;
     intDVec_t NT { dimensions[2],dimensions[1],dimensions[0] };
 
     int dir;
@@ -154,21 +169,29 @@ template<class T1, class T2>
 void fftwFourierTransform<T1,T2>::init( tensor_t & field  )
 {
     planForward= createC2CFFTWPlan(field, field, FFT_DIRECTION::FORWARD);
-    planBackward= createC2CFFTWPlan(field,field, FFT_DIRECTION::BACKWARD);
-    
+    planBackward= createC2CFFTWPlan(field,field, FFT_DIRECTION::BACKWARD);  
 };
-
 
 template<class T1,class T2>
 void fftwFourierTransform<T1,T2>::apply(   tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir )
 {
+    auto sizeReal = getDiscretizationRealSpace()->getLocalMesh()->size();
+    auto sizeFFT = getDiscretizationFourierSpace()->getLocalMesh()->size();
+
     if (dir==FFT_DIRECTION::FORWARD)
     {
-        fftw_execute_dft(planForward,(fftw_complex*)source.data(),(fftw_complex*)destination.data());
+        for(int iComp=0;iComp<this->getNComponents();iComp++)
+        {
+            fftw_execute_dft(planForward,((fftw_complex*)source.data() ) + iComp*sizeReal,((fftw_complex*)destination.data() ) + iComp*sizeFFT );
+        }
+        
     }
     else if (dir==FFT_DIRECTION::BACKWARD)
     {
-        fftw_execute_dft(planBackward,( fftw_complex*)source.data(),(fftw_complex*)destination.data());
+         for(int iComp=0;iComp<this->getNComponents();iComp++)
+        {
+            fftw_execute_dft(planBackward,((fftw_complex*)source.data() ) + iComp*sizeFFT,((fftw_complex*)destination.data() ) + iComp*sizeReal );
+        }
     }
     else
     {
@@ -188,9 +211,6 @@ fftwFourierTransform<T1,T2>::~fftwFourierTransform()
 
 
 
-
-
-
 template<class T1,class T2>
 std::shared_ptr<fourierTransform<T1,T2> > fourierTransformCreator<T1,T2>::create()
     {
@@ -202,12 +222,12 @@ std::shared_ptr<fourierTransform<T1,T2> > fourierTransformCreator<T1,T2>::create
         if (numProcs == 1)
         {
             auto discrReal = createUniformDiscretization( _domain, _globalMesh ,_processorGrid,_comm);
-            auto fftOp=std::make_shared<gp::fftwFourierTransform<T1,T2> >(discrReal,_nComponents);
+            auto fftOp=std::make_shared<gp::fftwFourierTransform<T1,T2> >(discrReal, _nComponents);
             return fftOp;
         }
         else
         {
-            auto fftOp=std::make_shared<gp::p3dfftFourierTransform<T1,T2>  >( _domain,_globalMesh,_processorGrid,_comm);
+            auto fftOp=std::make_shared<gp::p3dfftFourierTransform<T1,T2>  >( _domain,_globalMesh,_processorGrid,_comm,_nComponents);
 
             return fftOp;
         }
@@ -225,10 +245,8 @@ fourierTransformCreator<T1,T2>::fourierTransformCreator()
     _comm = MPI_COMM_WORLD;
 }
 
-
-
-
 template class p3dfftFourierTransform<complex_t,complex_t> ;
 template class fftwFourierTransform<complex_t,complex_t> ;
 template class fourierTransformCreator<complex_t,complex_t>;
+
 };

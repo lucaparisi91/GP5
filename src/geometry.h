@@ -13,7 +13,7 @@ class mesh
     mesh() : mesh({0,0,0}) {}
     mesh(const intDVec_t & N   );
 
-    const auto & size() const {return _size;}
+    size_t size() const {return _N[0]*_N[1]*_N[2];}
     const auto & shape() const {return _N;}
 
     const auto & getNGhosts() const {return _nGhosts;}
@@ -49,7 +49,7 @@ class domain
 
     void setLeft(const realDVec_t & left) { _left=left;updateLBox();}
     void setRight(const realDVec_t & right){_right=right;updateLBox();};
-    
+
     private:
 
     void updateLBox();
@@ -98,6 +98,11 @@ class discretization
 
 
 tensor_t momentums(std::shared_ptr<discretization> discr,int d, int nComponents);
+
+tensor_t positions(std::shared_ptr<discretization> discr,int d, int nComponents);
+
+
+
 
 std::shared_ptr<discretization> createUniformDiscretization( std::shared_ptr<domain> globalDomain, std::shared_ptr<mesh> & globalMesh, intDVec_t processorGrid, MPI_Comm & comm);
 

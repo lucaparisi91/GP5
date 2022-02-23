@@ -142,4 +142,52 @@ tensor_t momentums(std::shared_ptr<discretization> discr,int d, int nComponents)
     return K;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+tensor_t positions(std::shared_ptr<discretization> discr,int d, int nComponents)
+{
+    auto delta = discr->getSpaceStep( d );
+    const auto & left = discr->getDomain()->getLeft();
+    
+    const auto & globalShape = discr->getGlobalMesh()->shape();
+    const auto & shape = discr->getLocalMesh()->shape();
+    const auto & offset = discr->getLocalMesh()->getGlobalOffset();
+
+    tensor_t X( shape[0],shape[1],shape[2],nComponents);
+
+    for(int i=0;i<shape[0];i++)
+        for(int j=0;j<shape[1];j++)
+            for(int k=0;k<shape[2];k++)
+                {
+                    intDVec_t index{i,j,k};
+                    int iG = index[d] + offset[d];
+                    for(int iC=0;iC<nComponents;iC++)
+                    {  
+                        X(i,j,k,iC)=left[d] + delta *( iG + 0.5);   
+                    }
+                }
+    return X;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 };

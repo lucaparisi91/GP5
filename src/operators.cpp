@@ -9,7 +9,9 @@ namespace gp{
             auto discrReal = _fft->getDiscretizationRealSpace();
             auto discrFourier = _fft->getDiscretizationFourierSpace();
             const auto & shapeFourier=discrFourier->getLocalMesh()->shape();
-            int nComponents = 1;
+            
+            int nComponents = _fft->getNComponents();
+            
             K2=std::make_shared<tensor_t>(shapeFourier[0],shapeFourier[1],shapeFourier[2],nComponents);
 
             auto KX = momentums(discrFourier,0,nComponents);
