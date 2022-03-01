@@ -1,3 +1,7 @@
+#ifndef FUNCTIONAL_H
+#define FUNCTIONAL_H
+
+
 #include "operators.h"
 
 namespace gp
@@ -11,14 +15,13 @@ namespace gp
         virtual void apply( tensor_t & fieldOld, tensor_t & fieldNew, real_t time )=0;
 
         void setLaplacianOperator(std::shared_ptr<gp::operators::laplacian> op) {_lap=op;}
-        protected:
 
         auto getLaplacianOperator() {return _lap;}
 
 
-        auto getDiscretization() {return _discr;}
+        virtual std::shared_ptr<discretization> getDiscretization() {return _discr;}
 
-        void setDiscretization(std::shared_ptr<discretization> discr) {_discr=discr;}
+        virtual void setDiscretization(std::shared_ptr<discretization> discr) {_discr=discr;}
 
         auto getNComponents() const {return _nComponents;}
         auto setNComponents(int n) {_nComponents=n;}
@@ -36,7 +39,7 @@ namespace gp
     class gpFunctional : public functional
     {
         public:
-
+        
         gpFunctional() ;
         
         virtual void setOmegas( const std::vector<realDVec_t> & omegas){_omegas=omegas; _setTrappingPotential=true; }
@@ -70,3 +73,6 @@ namespace gp
     };
 
 }
+
+
+#endif

@@ -2,16 +2,14 @@
 #ifndef FOURIER_TRANSFORM_H
 #define FOURIER_TRANSFORM_H
 
-
 #include "traits.h"
 #include "geometry.h"
 #include "p3dfft.h"
 
-
 namespace gp
 {
     enum FFT_DIRECTION { FORWARD=0, BACKWARD=1 };
-    
+
     template<class T1,class T2>
     class fourierTransform
     {

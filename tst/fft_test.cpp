@@ -7,6 +7,7 @@
 #include "../src/fourierTransform.h"
 #include "../src/operators.h"
 
+
 TEST(fft,fftw)
 {
     realDVec_t left {-0.5,-0.5,-0.5};
@@ -96,7 +97,6 @@ TEST(fft, derivative)
     fftC.setDomain(domain);
     fftC.setGlobalMesh(globalMesh);
     fftC.setProcessorGrid(intDVec_t{numProcs,1,1});
-
 
     auto fftOp = fftC.create();
 

@@ -25,7 +25,7 @@ namespace gp{
                 }
             if (_setTrappingPotential)
             {
-            addPotential(fieldDataOld,fieldDataNew,time);
+                addPotential(fieldDataOld,fieldDataNew,time);
             }
 
             if (_setCouplings)

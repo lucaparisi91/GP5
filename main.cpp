@@ -2,6 +2,7 @@
 #include <mpi.h>
 #include <p3dfft.h>
 
+
 int main(int argc,char** argv)
 {
     std::array<real_t,3> lBox = { 1, 1, 1 } ;
@@ -10,16 +11,12 @@ int main(int argc,char** argv)
 
     std::array<int,3> shapeLocal;
     std::array<int,3> offsetGlobal;
-    
     std::array<int,3> shapeLocal2;
     std::array<int,3> offsetGlobal2;
 
-    
     MPI_Init( & argc, &argv);
 
     p3dfft::setup();
-
-
 
 
     int type_ids1[3] = {p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D};

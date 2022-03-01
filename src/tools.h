@@ -1,11 +1,18 @@
 #ifndef TOOLS_H
 #define TOOLS_H
+#include "mpi.h"
 
-#include "geometry.h"
+template<class T>
+struct toMPIDataType
+{
+    static MPI_Datatype type;
+};
+
+
+
 
 namespace gp
 {
-void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t & tensor, int comp);
 
 }
 

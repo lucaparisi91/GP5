@@ -1,94 +1,222 @@
 #include "traits.h"
 #include <mpi.h>
 #include <p3dfft.h>
+#include "yaml-cpp/yaml.h"
+#include "geometry.h"
+#include "fourierTransform.h"
+#include "operators.h"
+#include "functional.h"
+#include "io.h"
+#include "stepper.h"
+#include <filesystem>
 
 
 int main(int argc,char** argv)
 {
-    std::array<real_t,3> lBox = { 1, 1, 1 } ;
-    std::array<int,3> N = { 100 , 100, 100 };
-    std::array<real_t ,3 > deltax = { lBox[0] * 1./N[0] , lBox[1] * 1./N[1], lBox[2] * 1./N[2] };
-
-    std::array<int,3> shapeLocal;
-    std::array<int,3> offsetGlobal;
-    
-    std::array<int,3> shapeLocal2;
-    std::array<int,3> offsetGlobal2;
-
-    
-    MPI_Init( & argc, &argv);
-
+    MPI_Init(& argc,&argv);
     p3dfft::setup();
 
-
-    int type_ids1[3] = {p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D};
-    int type_ids2[3] = {p3dfft::CFFT_BACKWARD_D,p3dfft::CFFT_BACKWARD_D,p3dfft::CFFT_BACKWARD_D};
-    
-    int pdims[] = { 1 , 1 , 2 };
-    int mem_order1[] = {0,1,2};
-    int mem_order2[] = {1,2,0};
-
-    int dmap1[] = {0,1,2};
-    int dmap2[] = {1,2,0};
-    
-
-  
-    int gdims[] = { N[0] , N[1] , N[2] };
-
-    int Pgrid = p3dfft_init_proc_grid(pdims,MPI_COMM_WORLD);
-
-     // Initialize the initial grid 
-                     // this is an X pencil, since Px =1
-    
-    auto type_forward = p3dfft_init_3Dtype(type_ids1);
-    auto type_backward = p3dfft_init_3Dtype(type_ids2);
-
-    auto Xpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap1,mem_order1);
-
-  
-    auto Zpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap2,mem_order2);
-
-    auto trans_f = p3dfft_plan_3Dtrans(Xpencil,Zpencil,type_forward);
-
-  
-    auto trans_b = p3dfft_plan_3Dtrans(Zpencil,Xpencil,type_backward);
-
-
-    for( int i=0;i<3;i++) {
-        offsetGlobal[mem_order1[i] ] = Xpencil->GlobStart[i];
-        shapeLocal[mem_order1[i]] = Xpencil->Ldims[i];
-        offsetGlobal2[mem_order2[i] ] = Zpencil->GlobStart[i];
-        shapeLocal2[mem_order2[i]] = Zpencil->Ldims[i];
+    if (argc !=  2 )
+    {
+        throw std::runtime_error(" The program must have one argument only : the yaml input file");
     }
 
-    real_t alpha=1.0;
-    tensor_t field(  shapeLocal[0],shapeLocal[1],shapeLocal[2],1);
-    tensor_t fieldFourier(  shapeLocal2[0],shapeLocal2[1],shapeLocal2[2],1);
+    std::string confFileName(argv[1]);
 
-    for(int i=0;i<shapeLocal[0];i++)
-        for(int j=0;j<shapeLocal[1];j++)
-            for(int k=0;k<shapeLocal[2];k++)
+    YAML::Node config = YAML::LoadFile(confFileName);
+
+    // ######## Set up the geometry #####################
+    
+    auto globalShape= config["mesh"]["shape"].as<intDVec_t>();
+    auto globalMesh = std::make_shared<gp::mesh>(globalShape);
+
+    auto left = config["domain"]["left"].as<realDVec_t>();
+    auto right = config["domain"]["right"].as<realDVec_t>();
+
+    auto domain=std::make_shared<gp::domain>(left,right);
+
+    int nComponents=config["wavefunction"]["nComponents"].as<int>();
+
+    auto processorGrid = config["parallel"]["processorGrid"].as<intDVec_t>();
+
+    //######### Builds FFT operator ################
+    std::cerr << "Initializing FFT operator ..." <<std::endl;
+
+    gp::fourierTransformCreator<complex_t,complex_t> fftC;
+    fftC.setNComponents(nComponents);
+    fftC.setCommunicator(MPI_COMM_WORLD);
+    fftC.setDomain(domain);
+    fftC.setGlobalMesh(globalMesh);
+    fftC.setProcessorGrid( processorGrid);
+    auto fftOp = fftC.create();
+    
+    // ############### Builds the functionals
+    std::cerr << "Initializing functional ..." <<std::endl;
+
+    auto laplacian = std::make_shared<gp::operators::laplacian>(fftOp);
+
+    auto func=std::make_shared<gp::gpFunctional>();
+    auto funcConfigs = config["functional"];
+
+    if (funcConfigs["name"].as<std::string>() != "gpFunctional" )
+    {
+        throw std::runtime_error("Unkown functional");
+    }
+
+    for ( auto it = funcConfigs.begin() ; it != funcConfigs.end() ; it++)
+    {
+        if ( it->first.as<std::string>() == "omegas" )
+        {
+            auto omegas = it->second.as<std::vector<realDVec_t> >(); 
+            func->setOmegas(omegas);
+        } 
+        else if ( it->first.as<std::string>() == "coupling" )
+        {
+            auto _couplings = it->second.as<std::vector<std::vector<real_t> > >();
+
+            Eigen::Tensor<real_t , 2> couplings(nComponents,nComponents); 
+            couplings.setConstant(0);
+
+
+            if (_couplings.size() != nComponents)
             {
-                real_t x = -lBox[0]/2. + (i + offsetGlobal[0] +  0.5) * deltax[0];
-                real_t y = -lBox[1]/2. + (j + offsetGlobal[1] + 0.5) * deltax[1];
-                real_t z = -lBox[2]/2. + (k + offsetGlobal[2] + 0.5 ) * deltax[2];
-
-                real_t r = std::sqrt( x*x + y*y + z*z);
-                field(i,j,k,0)=exp(-alpha * x*x);
+                throw std::runtime_error("Incompatible number of components");
             }
 
-    p3dfft_exec_3Dtrans_double(trans_f,(real_t * )field.data(),(real_t *)fieldFourier.data(),0);
+            for(int j=0;j<nComponents;j++)
+            {
+                if (_couplings[j].size() != nComponents)
+                    {
+                    throw std::runtime_error("Incompatible number of components");
+                }
 
-    p3dfft_exec_3Dtrans_double(trans_b,(real_t * )fieldFourier.data(),(real_t *)field.data(),0);
+                for(int i=0;i<nComponents;i++)
+                {
+                    couplings(i,j)= _couplings[j][i];
+                }
+            }
+
+            func->setCouplings(couplings);
+        } 
+        else if ( it->first.as<std::string>() == "masses" )
+        {
+            auto masses = it->second.as<std::vector<real_t> >();
+            func->setMasses(masses);
+        }
+
+        
+        
+
+    }
+
+
+    auto discr = fftOp->getDiscretizationRealSpace();
+    func->setNComponents(nComponents);
+    func->setDiscretization(discr);
+    func->setLaplacianOperator(laplacian);
+    func->init();
+
+    auto localShape = discr->getLocalMesh()->shape();
+
+//  ####### initialize fields 
+    std::cerr << "Initializing fields ..." <<std::endl;
+
+    tensor_t oldField(localShape[0],localShape[1],localShape[2],nComponents);
+    tensor_t newField(localShape[0],localShape[1],localShape[2],nComponents);
+
+    oldField.setConstant(0);
+    newField.setConstant(0);
+
+    auto initialConditionFileName = config["initialCondition"]["file"].as<std::string>();
+
+    auto normalizations = config["wavefunction"]["normalization"].as<std::vector<real_t> >();
+
+
+    oldField = load( initialConditionFileName , *discr, nComponents);
+
+
+// ############ initialize stepper #####################
+
+    std::cerr << "Initializing stepper ..." <<std::endl;
+    auto stepperConfig = config["evolution"];
+
+    auto timeStep = stepperConfig["timeStep"].as<real_t>();
+    auto stepperName = stepperConfig["stepper"].as<std::string>();
+    auto isImaginary = stepperConfig["imaginaryTime"].as<bool>();    
+
     
+    std::shared_ptr<gp::stepper> stepper;
+
+    if (stepperName == "eulero")
+    {
+        stepper=std::make_shared<gp::euleroStepper>();
+    }
+    else if (stepperName == "RK4")
+    {
+        stepper = std::make_shared<gp::RK4Stepper>();
+    }
+
+    if (isImaginary)
+    {
+        stepper->setTimeStep( complex_t(timeStep,0));
+    }
+    else
+    {
+        stepper->setTimeStep( complex_t ( 0,-timeStep ));
+    }
+
+
+    stepper->setFunctional(func);
+    stepper->setNComponents(nComponents);
+    stepper->setDiscretization(discr);
+    stepper->setNormalizations( normalizations);
+    stepper->init();
     
-    p3dfft_free_data_grid(Xpencil);
-    p3dfft_free_data_grid(Zpencil);
-    p3dfft_free_proc_grid(Pgrid);
-    p3dfft_cleanup();
+
+    auto maxTime = stepperConfig["maxTime"].as<real_t>();
+    
+    auto outDir = config["output"]["folder"].as<std::string>();
+    auto nIterations = config["output"]["nIterations"].as<size_t>();
 
 
+    if ( not  std::filesystem::exists(outDir) )
+    {
+        std::filesystem::create_directories(outDir);
+    }
+
+// load time stepping rules
+    real_t t=0;
+    size_t k=0;
+    while ( t <= maxTime)
+    {
+        std::cout << "Time: " << t << std::endl;
+        gp::save( oldField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
+        for( size_t  i=0;i<nIterations;i++)
+        {
+            stepper->advance(oldField,newField,t);
+            std::swap(newField,oldField);
+            t+=timeStep;
+        }
+        k++;
+    }
+
+    
+    stepper=NULL;
+    fftOp=NULL;
+    func=NULL;
+    laplacian=NULL;
+    
+    p3dfft::cleanup();
 
     MPI_Finalize();
+    
 
 }
+
+
+
+
+
+
+
+

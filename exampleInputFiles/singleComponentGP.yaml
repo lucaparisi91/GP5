@@ -1,0 +1,34 @@
+mesh:
+  shape: [ 20  , 20  , 20 ]
+
+domain:
+  left: [-5,-5,-5]
+  right: [ 5,5, 5 ]
+parallel:
+  processorGrid: [ 1 , 1 , 1]
+
+wavefunction:
+  nComponents : 1
+  normalization : [ 100 ]
+
+
+functional:
+  name: "gpFunctional"
+  omegas: [ [1, 1,  1] ]
+  coupling: [[ 1 ] ] # fortran ordering ( column wise)
+  masses: [ 1 ]
+
+
+
+evolution:
+  timeStep: 5e-5
+  imaginaryTime: true
+  stepper: "RK4" # allowed steppers : [ RK4, eulero ]
+  maxTime: 30.0
+
+initialCondition:
+  file: "init.hdf5"
+
+output:
+  folder: "output"
+  nIterations : 1000 # number of iterations between outputs

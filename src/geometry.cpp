@@ -1,5 +1,8 @@
 #include "geometry.h"
 #include <iostream>
+#include "tools.h"
+
+
 namespace gp{
     mesh::mesh( const intDVec_t & N) :
     _N(N)
@@ -178,12 +181,80 @@ tensor_t positions(std::shared_ptr<discretization> discr,int d, int nComponents)
     return X;
 }
 
+real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & discr )
+{
+    const auto & dimensions= field.dimensions();
+    real_t sum=0;
+    for(int i=0;i<dimensions[0];i++)
+        for(int j=0;j<dimensions[1];j++)
+            for(int k=0;k<dimensions[2];k++)
+                {
+                    sum+=field(i,j,k,c).real()*field(i,j,k,c).real() ;
+                    sum+=field(i,j,k,c).imag()*field(i,j,k,c).imag() ;
+                }
+    
+    real_t sumReduce=0;
+    
+    MPI_Allreduce(&sum, &sumReduce, 1,  toMPIDataType<real_t>::type, MPI_SUM, discr->getCommunicator() );    
+
+    real_t dV=1;
+    for(int d=0;d<DIMENSIONS;d++)
+    {
+        dV*=discr->getSpaceStep(d);
+    }
+
+    return sumReduce*dV;
+
+}
+
+void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretization> discr)
+{
+    auto normInverseSqrt =sqrt( N  * 1./norm(field,c,discr) );
+    const auto & dimensions=field.dimensions();
+
+    for(int k=0;k<dimensions[2];k++)
+         for(int j=0;j<dimensions[1];j++)
+            for(int i=0;i<dimensions[0];i++)
+                {
+                    field(i,j,k,c)*=value_t(normInverseSqrt,0);
+                }
+                
+}
 
 
 
 
 
 
+
+void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t & field, int comp)
+{
+    const auto & shape= discr->getLocalMesh()->shape();
+    const auto & offset= discr->getLocalMesh()->getGlobalOffset();
+
+    const auto & left = discr->getDomain()->getLeft();
+    const auto & right = discr->getDomain()->getRight();
+
+    realDVec_t deltax;
+    for(int d=0;d<DIMENSIONS;d++)
+    {
+        deltax[d]=discr->getSpaceStep(d);
+    }
+    
+    real_t alpha=1./(2*sigma*sigma);
+    for(int i=0;i<shape[0];i++)
+        for(int j=0;j<shape[1];j++)
+            for(int k=0;k<shape[2];k++)
+            {
+                real_t x = left[0] + (i + offset[0] +0.5)*deltax[0];
+                real_t y = left[1] + (j + offset[1] +0.5)*deltax[1];
+                real_t z = left[2] + (k + offset[2] +0.5)*deltax[2];
+
+                real_t r2 = x*x + y*y + z*z;
+                field(i,j,k,comp)=complex_t(exp(-alpha*r2),0) ;
+            }
+              
+}
 
 
 

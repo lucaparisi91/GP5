@@ -52,6 +52,7 @@ class domain
 
     private:
 
+
     void updateLBox();
 
     realDVec_t _lBox;
@@ -85,7 +86,6 @@ class discretization
 
     real_t getFourierStep(int d) const {return 2*M_PI/_domain->getLBox()[d]; }
 
-
     private:
 
     std::shared_ptr<mesh_t> _globalMesh;
@@ -105,6 +105,14 @@ tensor_t positions(std::shared_ptr<discretization> discr,int d, int nComponents)
 
 
 std::shared_ptr<discretization> createUniformDiscretization( std::shared_ptr<domain> globalDomain, std::shared_ptr<mesh> & globalMesh, intDVec_t processorGrid, MPI_Comm & comm);
+
+void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t & tensor, int comp);
+
+
+void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretization> discr);
+real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & discr );
+
+
 
 };
 

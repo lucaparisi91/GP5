@@ -1,34 +1,6 @@
 import numpy as np
-import h5py
-
-
-def load( file ):
-    f = h5py.File(file, 'r')
-    field=np.array(f["field"][:,:,:,:])
-    if len(field.shape) == 5:
-        field=np.array(field[:,:,:,:,0]) + 1j * np.array(field[:,:,:,:,1])
-    field=np.transpose(field)
-    if (field.shape[3]==1):
-        field=field.reshape(np.array(field.shape)[:-1])
-
-    return field
-
-def save(file,y):
-    y=np.array(y)
-    if len(y.shape)==3:
-        y=y.reshape( y.shape + (1,)  )
-    
-
-    with h5py.File(file, "w") as f:
-        yt=y.transpose()
-        newShape= yt.shape + (2,)
-        dtype=h5py.h5t.array_create(h5py.h5t.NATIVE_DOUBLE, (2,))
-        f.create_dataset("field", yt.shape , dtype=dtype)
-        raw=np.zeros( newShape )
-        raw[:,:,:,:,0]=np.real(yt)
-        raw[:,:,:,:,1]=np.imag(yt)
-        f["field"][:,:,:,:]=raw
-
+import yaml
+from gp import field
 
 def generateGrid( meshShape, domain ):
     D=len(meshShape)
@@ -38,4 +10,92 @@ def generateGrid( meshShape, domain ):
     X,Y,Z=np.meshgrid(*axes,indexing="ij")
     return X,Y,Z
 
+
+class discretization:
+    def __init__(self,shape,domain):
+        self.shape=shape
+        self.domain=domain
+    
+    @property
+    def domain(self):
+        return self._domain
+    @property
+    def left(self):
+        return self._left
+    @property
+    def right(self):
+        return self._right
+    
+    @property
+    def grid(self):
+        return generateGrid(self.shape,domain=self.domain)
+
+    @property
+    def grid(self):
+        return generateGrid(self.shape,domain=self.domain)
+
+    @property
+    def cellWidth(self):
+        return self._cellWidth
+
+    @property
+    def cellVolume(self):
+        return np.prod(self._cellWidth)
+    
+    
+    @domain.setter
+    def domain(self,domain):
+        self._domain=domain
+        self._left=[ xRange[0]  for xRange in self._domain]
+        self._right=[ xRange[1]  for xRange in self._domain]
+        self._cellWidth = [ (self._right[d] - self._left[d] )/self.shape[d]   for d in range(len(self.shape))]
+
+
+class output:
+    def __init__(self, nIterations = 100, folder = "output"):
+        self.nIterations=nIterations
+        self.folder=folder
+    
+    def load(self,settings):
+        self.folder=settings["folder"]
+        self.nIterations=settings["nIterations"]
+
+
+class evolution:
+    def __init__( self, timeStep=0, algorithm="eulero",imaginaryTime=True):
+        self.timeStep=timeStep
+        self.algorithm=algorithm
+        self.imaginaryTime=imaginaryTime
+    
+
+    def load(self,settings):
+        self.timeStep=settings["timeStep"]
+        self.algorithm=settings["stepper"]
+        self.imaginaryTime=settings["imaginaryTime"]
+
+
+class simulation:
+    def __init__(self, discretization=None,output=output() ,evolution=None):
+        self.discretization=discretization
+        self.output=output
+        self.evolution=evolution
+
+
+def load( yamlFile ):
+    with open( yamlFile) as f:
+        settings=yaml.safe_load(f)
+    shape= settings["mesh"]["shape"]
+    left= settings["domain"]["left"]
+    right= settings["domain"]["right"]
+    domain=[ (left[d] , right[d] )       for d in range(len(shape))  ]
+
+    dis = discretization(shape,domain )
+
+    simOutput=output()
+    simOutput.load(settings["output"])
+
+    simEvolution=evolution()
+    simEvolution.load(settings["evolution"])
+
+    return simulation(discretization=dis,output=simOutput,evolution=simEvolution)
 
