@@ -4,7 +4,7 @@
 #include "../src/io.h"
 #include "../src/tools.h"
 #include "../src/functional.h"
-
+#include "../src/externalPotential.h"
 
 TEST(functional, gpFunctional)
 {
@@ -43,7 +43,11 @@ TEST(functional, gpFunctional)
     auto laplacian = std::make_shared<gp::operators::laplacian>(fftOp);
 
     auto func=std::make_shared<gp::gpFunctional>();
-    func->setOmegas( {  {1,1,1}, {1,1,1}});
+    gp::harmonicPotential pot({  {1,1,1}, {1,1,1}});
+
+    auto V = pot.create(discr,nComponents);
+    
+    func->setExternalPotential(V);
     func->setCouplings(  couplings  );
     func->setMasses({ 1, 1});
     func->setLaplacianOperator(laplacian);

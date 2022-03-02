@@ -1,6 +1,7 @@
 mesh:
   shape: [ 20  , 20  , 20 ]
 
+
 domain:
   left: [-5,-5,-5]
   right: [ 5,5, 5 ]
@@ -14,15 +15,22 @@ wavefunction:
 
 functional:
   name: "gpFunctional"
-  omegas: [ [1, 1,  1] ]
+  externalPotential:
+    h11 :
+        name: "harmonicPotential" 
+        omegas: [ [1, 1,  1] ]
+    vortex:
+        name : "vortex"
+  
+
   coupling: [[ 1 ] ] # fortran ordering ( column wise)
   masses: [ 1 ]
-
+  LHY : 
 
 
 evolution:
   timeStep: 5e-5
-  imaginaryTime: true
+  imaginaryTime: True
   stepper: "RK4" # allowed steppers : [ RK4, eulero ]
   maxTime: 30.0
 

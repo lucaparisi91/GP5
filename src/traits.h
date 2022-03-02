@@ -6,6 +6,8 @@
 #include <complex>
 #define DIMENSIONS 3
 #include <mpi.h>
+#include "yaml-cpp/yaml.h"
+
 
 using real_t = double;
 
@@ -45,4 +47,4 @@ using geometry_t = geometry;
 
 #endif
 
-
+using config_t = YAML::Node ;

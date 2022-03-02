@@ -41,9 +41,6 @@ namespace gp
         public:
         
         gpFunctional() ;
-        
-        virtual void setOmegas( const std::vector<realDVec_t> & omegas){_omegas=omegas; _setTrappingPotential=true; }
-
 
         virtual void setCouplings( const  Eigen::Tensor<real_t,2> & couplings) {_couplings=couplings;_setCouplings=true; }
 
@@ -53,11 +50,17 @@ namespace gp
 
         void setMasses(const std::vector<real_t> & masses){_masses=masses;}
 
+
+        void setExternalPotential( std::shared_ptr<tensor_t> V) {_V=V;_setExternalPotential=true; }
+
+        
         private:
 
         void addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
         void addSingleComponentMeanFieldInteraction( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
         void addTwoComponentMeanFieldInteraction( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
+
+
 
         std::shared_ptr<tensor_t> _V;
         std::vector<realDVec_t> _omegas;
@@ -67,9 +70,14 @@ namespace gp
 
         std::vector<real_t> _inverseMasses;
 
-        bool _setTrappingPotential;
+        bool _setExternalPotential;
         bool _setCouplings;
 
+    };
+
+    class LHYFunctional
+    {
+        
     };
 
 }

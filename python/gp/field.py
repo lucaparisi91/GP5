@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-
+from netCDF4 import Dataset
 
 def load( file ):
     f = h5py.File(file, 'r')
@@ -28,4 +28,25 @@ def save(file,y):
         raw[:,:,:,:,0]=np.real(yt)
         raw[:,:,:,:,1]=np.imag(yt)
         f["field"][:,:,:,:]=raw
+
+
+def saveNetCDF(psi,filename):
+    '''
+    Saves the density (rho) and the phase (phi) of the field psi on a file.
+    '''
+    rho=np.abs(psi)**2
+    rootgrp = Dataset(filename, "w")
+    xDim=rootgrp.createDimension("X", psi.shape[0])
+    yDim=rootgrp.createDimension("Y", psi.shape[1])
+    zDim=rootgrp.createDimension("Z", psi.shape[2])
+    rhoVar= rootgrp.createVariable("rho","f8",("Z","Y","X"))
+    rhoVar[:,:,:]=rho
+    rhoVar.units="K"
+    
+    phi=np.angle(psi)
+    phiVar= rootgrp.createVariable("phi","f8",("Z","Y","X"))
+    phiVar[:,:,:]=phi
+    phiVar.units="K"
+    rootgrp.close()
+
 

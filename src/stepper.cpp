@@ -1,10 +1,8 @@
 #include "stepper.h"
 #include <iostream>
 
-
 namespace gp
 {
-
     void euleroStepper::advance(  tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
     {
 
@@ -54,7 +52,7 @@ namespace gp
         k2= tensor_t( EXPAND_D(localShape) , nComponents()  );
         k3= tensor_t( EXPAND_D(localShape) , nComponents()  );
         k4= tensor_t( EXPAND_D(localShape) , nComponents()  );
-
+        
     }
 
 }

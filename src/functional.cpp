@@ -1,9 +1,10 @@
 #include "functional.h"
 
+
 namespace gp{
 
     gpFunctional::gpFunctional() :
-    _setTrappingPotential(false),
+    _setExternalPotential(false),
     _setCouplings(false),
     functional::functional()
     {
@@ -23,7 +24,7 @@ namespace gp{
                 { 
                 fieldDataNew(i,j,k,c)=-0.5*_inverseMasses[c]*fieldDataNew(i,j,k,c); 
                 }
-            if (_setTrappingPotential)
+            if (_setExternalPotential)
             {
                 addPotential(fieldDataOld,fieldDataNew,time);
             }
@@ -74,27 +75,20 @@ namespace gp{
         real_t g12 = _couplings(0,1);
         
         for(int k=0;k<dimensions[2];k++)
-        for(int j=0;j<dimensions[1];j++) 
-        for(int i=0;i<dimensions[0];i++)
-        { 
-            auto density0 = std::norm(fieldDataOld(i,j,k,0) );
-            auto density1 = std::norm(fieldDataOld(i,j,k,1) );
+            for(int j=0;j<dimensions[1];j++) 
+                for(int i=0;i<dimensions[0];i++)
+                { 
+                    auto density0 = std::norm(fieldDataOld(i,j,k,0) );
+                    auto density1 = std::norm(fieldDataOld(i,j,k,1) );
 
-            fieldDataNew(i,j,k,0)+=(g11*density0 + g12*density1 )*fieldDataOld(i,j,k,0)   ;
-            fieldDataNew(i,j,k,1)+=(g22*density1 + g12*density0 )*fieldDataOld(i,j,k,1)   ;
-        }
-
+                    fieldDataNew(i,j,k,0)+=(g11*density0 + g12*density1 )*fieldDataOld(i,j,k,0)   ;
+                    fieldDataNew(i,j,k,1)+=(g22*density1 + g12*density0 )*fieldDataOld(i,j,k,1)   ;
+                }
     }
 
 
     void gpFunctional::init()
     {
-
-        auto X= positions( getDiscretization(),0,getNComponents() );
-        auto Y= positions( getDiscretization(),1,getNComponents() );
-        auto Z= positions( getDiscretization(),2,getNComponents() );
-
-
         _masses.resize(getNComponents(),1);
         _inverseMasses.resize(getNComponents(),1);
 
@@ -102,18 +96,6 @@ namespace gp{
         {
             _inverseMasses[i]=1./_masses[i];
         };
-
-        _V=std::make_shared<tensor_t>(X.dimensions() );
-
-       const auto & dimensions = X.dimensions();
-        for (int c=0;c<dimensions[3];c++) 
-            for(int k=0;k<dimensions[2];k++)
-                for(int j=0;j<dimensions[1];j++) 
-                    for(int i=0;i<dimensions[0];i++)
-                    { 
-                        (*_V)(i,j,k,c)=(_omegas[c][0]*X(i,j,k,c)*X(i,j,k,c) + _omegas[c][1]*Y(i,j,k,c)*Y(i,j,k,c) + _omegas[c][2]*Z(i,j,k,c)*Z(i,j,k,c) )*0.5;
-                    }
-    
 
     }
 

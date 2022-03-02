@@ -1,7 +1,6 @@
 #include "traits.h"
 #include <mpi.h>
 #include <p3dfft.h>
-#include "yaml-cpp/yaml.h"
 #include "geometry.h"
 #include "fourierTransform.h"
 #include "operators.h"
@@ -9,6 +8,7 @@
 #include "io.h"
 #include "stepper.h"
 #include <filesystem>
+#include "externalPotential.h"
 
 
 int main(int argc,char** argv)
@@ -63,12 +63,17 @@ int main(int argc,char** argv)
         throw std::runtime_error("Unkown functional");
     }
 
+    std::shared_ptr<gp::externalPotential> pot=NULL;
+
+
     for ( auto it = funcConfigs.begin() ; it != funcConfigs.end() ; it++)
     {
-        if ( it->first.as<std::string>() == "omegas" )
+        if ( it->first.as<std::string>() == "externalPotential" )
         {
-            auto omegas = it->second.as<std::vector<realDVec_t> >(); 
-            func->setOmegas(omegas);
+            gp::externalPotentialConstructor vConstr;
+
+            pot=vConstr.create( it->second);
+                        
         } 
         else if ( it->first.as<std::string>() == "coupling" )
         {
@@ -114,6 +119,14 @@ int main(int argc,char** argv)
     func->setNComponents(nComponents);
     func->setDiscretization(discr);
     func->setLaplacianOperator(laplacian);
+
+    if ( pot != NULL )
+    {
+        auto V = pot->create(discr,nComponents);
+        func->setExternalPotential(V);
+
+    }
+    
     func->init();
 
     auto localShape = discr->getLocalMesh()->shape();
