@@ -10,7 +10,7 @@ namespace gp
     {
     public:
 
-        functional() : _nComponents(1) {}
+        functional() : _nComponents(1),_setExternalPotential(false) {}
 
         virtual void apply( tensor_t & fieldOld, tensor_t & fieldNew, real_t time )=0;
 
@@ -25,7 +25,9 @@ namespace gp
 
         auto getNComponents() const {return _nComponents;}
         auto setNComponents(int n) {_nComponents=n;}
-        
+
+
+        void setExternalPotential( std::shared_ptr<tensor_t> V) {_V=V;_setExternalPotential=true; }    
 
         virtual void init() { }
         private:
@@ -33,6 +35,17 @@ namespace gp
         std::shared_ptr<gp::operators::laplacian> _lap;
         std::shared_ptr<discretization> _discr;
         int _nComponents;
+        
+        bool _setExternalPotential;
+
+
+        std::shared_ptr<tensor_t> _V;
+
+        protected:
+
+        void addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
+        
+
 
     };
 
@@ -51,18 +64,16 @@ namespace gp
         void setMasses(const std::vector<real_t> & masses){_masses=masses;}
 
 
-        void setExternalPotential( std::shared_ptr<tensor_t> V) {_V=V;_setExternalPotential=true; }
-
+        
         
         private:
 
-        void addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
+        
         void addSingleComponentMeanFieldInteraction( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
         void addTwoComponentMeanFieldInteraction( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
 
 
 
-        std::shared_ptr<tensor_t> _V;
         std::vector<realDVec_t> _omegas;
 
         Eigen::Tensor<real_t,2> _couplings;
@@ -70,14 +81,14 @@ namespace gp
 
         std::vector<real_t> _inverseMasses;
 
-        bool _setExternalPotential;
         bool _setCouplings;
 
     };
 
     class LHYFunctional
     {
-        
+
+
     };
 
 }

@@ -4,7 +4,6 @@
 namespace gp{
 
     gpFunctional::gpFunctional() :
-    _setExternalPotential(false),
     _setCouplings(false),
     functional::functional()
     {
@@ -24,10 +23,9 @@ namespace gp{
                 { 
                 fieldDataNew(i,j,k,c)=-0.5*_inverseMasses[c]*fieldDataNew(i,j,k,c); 
                 }
-            if (_setExternalPotential)
-            {
-                addPotential(fieldDataOld,fieldDataNew,time);
-            }
+            
+            addPotential(fieldDataOld,fieldDataNew,time);
+            
 
             if (_setCouplings)
             {
@@ -44,10 +42,14 @@ namespace gp{
 
     }
 
-    void gpFunctional::addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
-    {
-    fieldDataNew+=(*_V)*fieldDataOld;
 
+    void functional::addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
+    {
+        if (_setExternalPotential)
+        {
+            fieldDataNew+=(*_V)*fieldDataOld;
+        }
+    
     }
     void gpFunctional::addSingleComponentMeanFieldInteraction( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
     {
