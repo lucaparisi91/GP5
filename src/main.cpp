@@ -10,7 +10,6 @@
 #include <filesystem>
 #include "externalPotential.h"
 
-
 int main(int argc,char** argv)
 {
     MPI_Init(& argc,&argv);
@@ -55,79 +54,17 @@ int main(int argc,char** argv)
 
     auto laplacian = std::make_shared<gp::operators::laplacian>(fftOp);
 
-    auto func=std::make_shared<gp::gpFunctional>();
-    auto funcConfigs = config["functional"];
-
-    if (funcConfigs["name"].as<std::string>() != "gpFunctional" )
-    {
-        throw std::runtime_error("Unkown functional");
-    }
-
-    std::shared_ptr<gp::externalPotential> pot=NULL;
-
-
-    for ( auto it = funcConfigs.begin() ; it != funcConfigs.end() ; it++)
-    {
-        if ( it->first.as<std::string>() == "externalPotential" )
-        {
-            gp::externalPotentialConstructor vConstr;
-
-            pot=vConstr.create( it->second);
-                        
-        } 
-        else if ( it->first.as<std::string>() == "coupling" )
-        {
-            auto _couplings = it->second.as<std::vector<std::vector<real_t> > >();
-
-            Eigen::Tensor<real_t , 2> couplings(nComponents,nComponents); 
-            couplings.setConstant(0);
-
-
-            if (_couplings.size() != nComponents)
-            {
-                throw std::runtime_error("Incompatible number of components");
-            }
-
-            for(int j=0;j<nComponents;j++)
-            {
-                if (_couplings[j].size() != nComponents)
-                    {
-                    throw std::runtime_error("Incompatible number of components");
-                }
-
-                for(int i=0;i<nComponents;i++)
-                {
-                    couplings(i,j)= _couplings[j][i];
-                }
-            }
-
-            func->setCouplings(couplings);
-        } 
-        else if ( it->first.as<std::string>() == "masses" )
-        {
-            auto masses = it->second.as<std::vector<real_t> >();
-            func->setMasses(masses);
-        }
-
-        
-        
-
-    }
-
-
     auto discr = fftOp->getDiscretizationRealSpace();
-    func->setNComponents(nComponents);
-    func->setDiscretization(discr);
-    func->setLaplacianOperator(laplacian);
 
-    if ( pot != NULL )
-    {
-        auto V = pot->create(discr,nComponents);
-        func->setExternalPotential(V);
+    gp::functionalConstructor funcC;
 
-    }
-    
-    func->init();
+    funcC.setLaplacianOperator(laplacian);
+    funcC.setDiscretization(discr);
+    funcC.setNComponents(nComponents);
+
+
+
+    auto func = funcC.create(config["functional"]);
 
     auto localShape = discr->getLocalMesh()->shape();
 
@@ -199,18 +136,22 @@ int main(int argc,char** argv)
 
 // load time stepping rules
     real_t t=0;
-    size_t k=0;
+    int k=0;
     while ( t <= maxTime)
     {
-        std::cout << "Time: " << t << std::endl;
-        gp::save( oldField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
-        for( size_t  i=0;i<nIterations;i++)
+       
+        for( int  i=0;i<nIterations;i++)
         {
             stepper->advance(oldField,newField,t);
             std::swap(newField,oldField);
             t+=timeStep;
         }
         k++;
+        
+        std::cout << "Time: " << t << std::endl;
+        gp::save( newField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
+        std::cout << "saved" << std::endl;
+
     }
 
     

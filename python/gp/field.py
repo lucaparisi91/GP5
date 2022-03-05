@@ -8,8 +8,8 @@ def load( file ):
     if len(field.shape) == 5:
         field=np.array(field[:,:,:,:,0]) + 1j * np.array(field[:,:,:,:,1])
     field=np.transpose(field)
-    if (field.shape[3]==1):
-        field=field.reshape(np.array(field.shape)[:-1])
+    #if (field.shape[3]==1):
+    #    field=field.reshape(np.array(field.shape)[:-1])
 
     return field
 
@@ -34,19 +34,25 @@ def saveNetCDF(psi,filename):
     '''
     Saves the density (rho) and the phase (phi) of the field psi on a file.
     '''
+
     rho=np.abs(psi)**2
     rootgrp = Dataset(filename, "w")
     xDim=rootgrp.createDimension("X", psi.shape[0])
     yDim=rootgrp.createDimension("Y", psi.shape[1])
     zDim=rootgrp.createDimension("Z", psi.shape[2])
-    rhoVar= rootgrp.createVariable("rho","f8",("Z","Y","X"))
-    rhoVar[:,:,:]=rho
-    rhoVar.units="K"
+
+    for c in range(psi.shape[3]):
+        rhoVar= rootgrp.createVariable("rho{:d}".format(c),"f8",("Z","Y","X"))
+        rhoVar[:,:,:]=rho[:,:,:,c]
+        rhoVar.units="K"
     
     phi=np.angle(psi)
-    phiVar= rootgrp.createVariable("phi","f8",("Z","Y","X"))
-    phiVar[:,:,:]=phi
-    phiVar.units="K"
+    for c in range(psi.shape[3]):
+        
+        phiVar= rootgrp.createVariable("phi{:d}".format(c),"f8",("Z","Y","X"))
+        phiVar[:,:,:]=phi[:,:,:,c]
+        phiVar.units="K"
     rootgrp.close()
+
 
 

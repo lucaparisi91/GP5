@@ -1,0 +1,46 @@
+mesh:
+  shape: [ 30  , 30  , 30 ]
+
+domain:
+  left: [-15,-15,-15]
+  right: [ 15,15, 15 ]
+parallel:
+  processorGrid: [ 1 , 1 , 1]
+
+
+wavefunction:
+  nComponents : 2
+  normalization : [ 1000 , 10000 ]
+
+
+functional:
+#  gp:
+#    name: "gpFunctional"
+#    masses: [1]
+#    coupling: [[1]]
+#
+#    externalPotential:
+#      h11:
+#        omegas: [ [1,1,1] ]
+#        name: "harmonic"
+#      vortex:
+#        name: "vortex"
+  droplet:
+    name: "UnlockedLHYDroplet"
+    eta : -4
+    alpha: 0.8838834764831843
+    beta : 1
+
+
+evolution:
+  timeStep: 5e-5
+  imaginaryTime: True
+  stepper: "RK4" # allowed steppers : [ RK4, eulero ]
+  maxTime: 30.0
+
+initialCondition:
+  file: "init.hdf5"
+
+output:
+  folder: "output"
+  nIterations : 1000 # number of iterations between outputs

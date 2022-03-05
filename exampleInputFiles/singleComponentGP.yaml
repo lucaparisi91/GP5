@@ -1,42 +1,42 @@
 mesh:
   shape: [ 20  , 20  , 20 ]
 
-
 domain:
-  left: [-5,-5,-5]
-  right: [ 5,5, 5 ]
+  left: [-10,-10,-10]
+  right: [ 10,10, 10 ]
 parallel:
   processorGrid: [ 1 , 1 , 1]
 
 wavefunction:
   nComponents : 1
-  normalization : [ 100 ]
-
+  normalization : [ 1000 ]
 
 functional:
-  name: "gpFunctional"
-  externalPotential:
-    h11 :
-        name: "harmonicPotential" 
-        omegas: [ [1, 1,  1] ]
-    vortex:
-        name : "vortex"
-  
-
-  coupling: [[ 1 ] ] # fortran ordering ( column wise)
-  masses: [ 1 ]
-  LHY : 
+  gp:
+    name: "gpFunctional"
+    masses: [1]
+    coupling: [[1]]
+  V:
+    name: "externalPotential"
+    V:
+      h11:
+        name: "potentialFromFile"
+        filename: "V.hdf5"
+#      vortex:
+#        name: "vortex"
+#  droplet:
+#    name: "LHYDroplet"
 
 
 evolution:
   timeStep: 5e-5
   imaginaryTime: True
   stepper: "RK4" # allowed steppers : [ RK4, eulero ]
-  maxTime: 30.0
+  maxTime: 500
 
 initialCondition:
   file: "init.hdf5"
 
 output:
   folder: "output"
-  nIterations : 1000 # number of iterations between outputs
+  nIterations : 2000 # number of iterations between outputs

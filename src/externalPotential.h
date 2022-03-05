@@ -45,6 +45,21 @@ namespace gp
     };
 
 
+    class potentialFromFile : public externalPotential
+    {
+        public:
+        
+        potentialFromFile(std::string filename) : _filename(filename) { }
+
+        virtual std::shared_ptr<tensor_t> create( std::shared_ptr<discretization> discr, int nComponents ) const ;
+
+
+        
+        private:
+        std::string _filename;
+
+    };
+
     class externalPotentialConstructor
     {
         public:

@@ -27,7 +27,7 @@ namespace gp
         int pdims[] = { processors[0] , processors[1] , processors[2] };
         int mem_order1[] = {0,1,2};
         int mem_order2[] = {0,1,2};
-
+        
 
         int dmap1[] = {0,1,2};
         int dmap2[] = {0,1,2};

@@ -11,6 +11,7 @@ import tqdm
 import pandas as pd
 from gp import field
 
+
 class analysis:
     def __init__( self,settings, runFolder=".", observables=[] ):
         self.runFolder=runFolder
@@ -53,50 +54,72 @@ class analysis:
         iterations=self.iterations        
         times=pd.DataFrame({"times":self.times})
         times.index=iterations
-        
 
         estimates=[]
         for i,file in tqdm.tqdm( zip(iterations,files) ):
-            y=field.load(file)
-            estimate=[]
-            for ob in self.observables:
-                est=ob(y,key=i)
-                if est is not None:
-                    estimate.append(est)
-            if len(estimate) != 0:
-                estimates.append(pd.concat(estimate,axis=1) )
+            try:
+                y=field.load(file)
+            except OSError as e:
+                print( str(e) )
+            else:
+                estimate=[]
+                for ob in self.observables:
+                    est=ob(y,key=i)
+                    if est is not None:
+                        estimate.append(est)
+                if len(estimate) != 0:
+                    estimates.append(pd.concat(estimate,axis=1) )
         
         if len(estimates) != 0:
             estimates=pd.concat(estimates)
             return pd.merge(times,estimates,left_index=True,right_index=True).sort_values(by="times")
 
 
+
 class width:
-    def __init__(self,settings):
+    def __init__(self,settings,component=0,label="width"):
         self.settings=settings
         X,Y,Z=self.settings.discretization.grid
         self.R2=X**2 + Y**2 + Z**2
         self.deltaV=self.settings.discretization.cellVolume
-        
-    def __call__(self,field,key=0):
-        res=self.deltaV*np.sum(np.abs(field)**2 * self.R2 )
-        return pd.DataFrame({ "width" : [res]} , index=[key])
+        self.component=component
+        self.label=label
 
+    def __call__(self,field,key=0):
+        
+        res=self.deltaV*np.sum(np.abs(field[:,:,:,self.component])**2 * self.R2 )
+        return pd.DataFrame({ self.label : [res]} , index=[key])
+
+
+
+class maxDensity:
+    def __init__(self,settings,component=0,label="width"):
+        self.settings=settings
+        self.component=component
+        self.label=label
+
+    def __call__(self,field,key=0):
+        
+        res=np.max(np.abs(field[:,:,:,self.component])**2 )
+        return pd.DataFrame({ self.label : [res]} , index=[key])
 
 
 class centerOfMass:
-    def __init__(self,settings):
+    def __init__(self,settings,component=0,label="cm"):
         self.settings=settings
         self.X,self.Y,self.Z=self.settings.discretization.grid
         self.deltaV=self.settings.discretization.cellVolume
+        self.component=component
+        self.label=label
 
     def __call__(self,psi,key=0):
-        field2=np.abs(psi)**2
-        Xm=self.deltaV*np.sum( field2 * self.X )
-        Ym=self.deltaV*np.sum( field2 * self.Y )
-        Zm=self.deltaV*np.sum( field2 * self.Z )
+        field2=np.abs(psi[:,:,:,self.component])**2
+        N=np.sum(field2)
+        Xm=np.sum( field2 * self.X )/N
+        Ym=np.sum( field2 * self.Y )/N
+        Zm=np.sum( field2 * self.Z )/N
 
-        return pd.DataFrame({ "cmX" : [Xm] , "cmY" : [Ym] , "cmZ" : [Zm]  } , index=[key])
+        return pd.DataFrame({ "{}X".format(self.label) : [Xm] , "{}Y".format(self.label) : [Ym] , "{}Z".format(self.label) : [Zm]  } , index=[key])
         
     
 
@@ -109,8 +132,4 @@ class netCDFConverter:
             os.makedirs(self.outdir)
         filename=os.path.join( self.outdir, "psi{:d}.nc".format(key))
         field.saveNetCDF(psi,filename)
-
-
-
-
 

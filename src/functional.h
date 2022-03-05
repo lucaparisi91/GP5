@@ -24,7 +24,7 @@ namespace gp
         virtual void setDiscretization(std::shared_ptr<discretization> discr) {_discr=discr;}
 
         auto getNComponents() const {return _nComponents;}
-        auto setNComponents(int n) {_nComponents=n;}
+        void setNComponents(int n) {_nComponents=n;}
 
 
         void setExternalPotential( std::shared_ptr<tensor_t> V) {_V=V;_setExternalPotential=true; }    
@@ -38,13 +38,11 @@ namespace gp
         
         bool _setExternalPotential;
 
-
         std::shared_ptr<tensor_t> _V;
 
         protected:
 
         void addPotential( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time );
-        
 
 
     };
@@ -85,13 +83,56 @@ namespace gp
 
     };
 
-    class LHYFunctional
+
+    class LHYDropletFunctional : public functional
     {
+        public:
+        LHYDropletFunctional() {}
+
+        virtual void apply( tensor_t & source, tensor_t & destination, real_t time ) override;
 
 
     };
 
-}
+    class LHYDropletUnlockedFunctional : public functional
+    {
+        public:
+        LHYDropletUnlockedFunctional(real_t alpha, real_t beta,real_t eta) : _alpha(alpha),_beta(beta),_eta(eta) {}
 
+        virtual void apply( tensor_t & source, tensor_t & destination, real_t time ) override;
+
+        private:
+
+        real_t _alpha;
+        real_t _beta;
+        real_t _eta;
+
+    };
+
+
+
+class functionalConstructor
+{
+    public:
+    std::shared_ptr<functional> create(const config_t & settings);
+
+    void setLaplacianOperator(std::shared_ptr<gp::operators::laplacian> op) {_laplacian=op;}
+
+
+    void setNComponents(int n) {_nComponents=n;}
+
+    virtual void setDiscretization(std::shared_ptr<discretization> discr) {_discr=discr;}
+
+
+    private:
+
+    std::shared_ptr<discretization> _discr;
+    int _nComponents;
+    std::shared_ptr<gp::operators::laplacian> _laplacian;
+
+
+};
+
+}
 
 #endif

@@ -1,5 +1,6 @@
 #include "externalPotential.h"
 #include <iostream>
+#include "io.h"
 namespace gp {
 
     harmonicPotential::harmonicPotential(const std::vector<realDVec_t> & omegas) : _omegas(omegas)
@@ -72,6 +73,15 @@ namespace gp {
 
     }
 
+     std::shared_ptr<tensor_t> potentialFromFile::create( std::shared_ptr<discretization> discr, int nComponents ) const
+    {
+        auto _V= load( _filename , *discr, nComponents);
+        auto V = std::make_shared<tensor_t>(_V.dimensions() );
+        *V=_V;
+        return V ;
+    }
+
+
 
     std::shared_ptr<externalPotential> externalPotentialConstructor::create( const config_t & settings ) 
     {
@@ -86,23 +96,29 @@ namespace gp {
                     auto omegas = settingsPot["omegas"].as<std::vector<realDVec_t> >();
 
                 pots.push_back(std::make_shared<harmonicPotential>(omegas) );
-        
             }
-
-            if (settingsPot["name"].as<std::string>() == "vortex" )
+            else if (settingsPot["name"].as<std::string>() == "vortex" )
             {
                   
 
                     pots.push_back(std::make_shared<vortexPotential>( ) );
-            }   
-            
+            }
+            else if (settingsPot["name"].as<std::string>() == "potentialFromFile" )
+            {
+                  auto filename = settingsPot["filename"].as<std::string >();
+                pots.push_back(std::make_shared<potentialFromFile>( filename) );
+            }
+            else 
+            {
+                throw std::runtime_error("Unkown potential");
+
+            }
+                 
 
         }
-
         
         return std::make_shared<sumPotential>(pots);
-            
-            
+                   
     }
 
 

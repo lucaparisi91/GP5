@@ -60,7 +60,6 @@ class output:
         self.folder=settings["folder"]
         self.nIterations=settings["nIterations"]
 
-
 class evolution:
     def __init__( self, timeStep=0, algorithm="eulero",imaginaryTime=True):
         self.timeStep=timeStep

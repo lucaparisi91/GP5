@@ -13,6 +13,7 @@ TEST(functional, gpFunctional)
     intDVec_t N { 200, 100, 100};
     int nComponents=2;
 
+
     p3dfft::setup();
 
     auto domain = std::make_shared<gp::domain>( left,right );
@@ -33,6 +34,8 @@ TEST(functional, gpFunctional)
 
 
     auto fftOp = fftC.create();
+
+    
     auto discr = fftOp->getDiscretizationRealSpace();
 
 
@@ -71,11 +74,15 @@ TEST(functional, gpFunctional)
 
     func->apply(field,field2,0);
     
+    
     save(field,"gaussian.hdf5",*discr);
     save(field2,"func.hdf5",*discr);
 
     func = NULL;
     fftOp=NULL;
+    laplacian = NULL;
+
+
 
     p3dfft::cleanup();
 
