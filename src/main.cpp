@@ -22,6 +22,12 @@ int main(int argc,char** argv)
 
     std::string confFileName(argv[1]);
 
+    int numProcs,rank;
+
+    MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
+    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+
+
     YAML::Node config = YAML::LoadFile(confFileName);
 
     // ######## Set up the geometry #####################
@@ -38,8 +44,14 @@ int main(int argc,char** argv)
 
     auto processorGrid = config["parallel"]["processorGrid"].as<intDVec_t>();
 
+    intDVec_t ordering = config["parallel"]["fftOrdering"].as<intDVec_t>();
+
     //######### Builds FFT operator ################
-    std::cerr << "Initializing FFT operator ..." <<std::endl;
+    if (rank == 0)
+    {
+        std::cerr << "Initializing FFT operator ..." <<std::endl;
+    }
+
 
     gp::fourierTransformCreator<complex_t,complex_t> fftC;
     fftC.setNComponents(nComponents);
@@ -47,11 +59,19 @@ int main(int argc,char** argv)
     fftC.setDomain(domain);
     fftC.setGlobalMesh(globalMesh);
     fftC.setProcessorGrid( processorGrid);
+    fftC.setOrdering(ordering);
+
+
     auto fftOp = fftC.create();
     
     // ############### Builds the functionals
-    std::cerr << "Initializing functional ..." <<std::endl;
+    if (rank == 0)
+    {
 
+        std::cerr << "Initializing functional ..." <<std::endl;
+    }
+
+    
     auto laplacian = std::make_shared<gp::operators::laplacian>(fftOp);
 
     auto discr = fftOp->getDiscretizationRealSpace();
@@ -69,7 +89,12 @@ int main(int argc,char** argv)
     auto localShape = discr->getLocalMesh()->shape();
 
 //  ####### initialize fields 
-    std::cerr << "Initializing fields ..." <<std::endl;
+    if (rank == 0)
+    {
+
+        std::cerr << "Initializing fields ..." <<std::endl;
+    }
+
 
     tensor_t oldField(localShape[0],localShape[1],localShape[2],nComponents);
     tensor_t newField(localShape[0],localShape[1],localShape[2],nComponents);
@@ -87,7 +112,11 @@ int main(int argc,char** argv)
 
 // ############ initialize stepper #####################
 
-    std::cerr << "Initializing stepper ..." <<std::endl;
+    if (rank == 0)
+    {
+
+        std::cerr << "Initializing stepper ..." <<std::endl;
+    }
     auto stepperConfig = config["evolution"];
 
     auto timeStep = stepperConfig["timeStep"].as<real_t>();
@@ -121,7 +150,7 @@ int main(int argc,char** argv)
     stepper->setDiscretization(discr);
     stepper->setNormalizations( normalizations);
     stepper->init();
-    
+
 
     auto maxTime = stepperConfig["maxTime"].as<real_t>();
     
@@ -147,11 +176,20 @@ int main(int argc,char** argv)
             t+=timeStep;
         }
         k++;
-        
-        std::cout << "Time: " << t << std::endl;
-        gp::save( newField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
-        std::cout << "saved" << std::endl;
 
+        if (rank == 0)
+        {
+            std::cout << "Time: " << t << std::endl;
+        }
+
+        gp::save( newField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
+        if (rank == 0)
+        {
+            std::cout << "saved" << std::endl;
+        }
+
+        
+        
     }
 
     

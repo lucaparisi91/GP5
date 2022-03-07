@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "mpi.h"
-
 #include "../src/geometry.h"
 #include "../src/io.h"
 #include "../src/tools.h"
@@ -8,11 +7,14 @@
 #include "../src/operators.h"
 
 
-TEST(fft,fftw)
+TEST(fft,forward_backward)
 {
-    realDVec_t left {-0.5,-0.5,-0.5};
-    realDVec_t right {0.5,0.5,0.5};
-    intDVec_t N { 100, 100, 100};
+    realDVec_t left { -0.5,-0.5,-0.5};
+    realDVec_t right { 0.5,0.5,0.5};
+    intDVec_t N { 50, 170 , 150};
+
+    p3dfft::setup();
+
 
     auto domain = std::make_shared<gp::domain>( left,right );
     auto globalMesh = std::make_shared<gp::mesh>( N);
@@ -23,10 +25,25 @@ TEST(fft,fftw)
     MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
-    auto discr = createUniformDiscretization( domain, globalMesh ,intDVec_t{numProcs,1,1}, comm);
+    gp::fourierTransformCreator<complex_t,complex_t> fftC;
+    fftC.setNComponents(1);
+    fftC.setCommunicator(MPI_COMM_WORLD);
+    fftC.setDomain(domain);
+    fftC.setGlobalMesh(globalMesh);
+    fftC.setProcessorGrid(intDVec_t{1,1,numProcs});
+
+
+    auto fftOp = fftC.create();
+
+    auto discr = fftOp->getDiscretizationRealSpace();
+    auto discr2 = fftOp->getDiscretizationFourierSpace();
 
     const auto & shape= discr->getLocalMesh()->shape();
     const auto & offset= discr->getLocalMesh()->getGlobalOffset();
+
+    const auto & shape2= discr2->getLocalMesh()->shape();
+    const auto & offset2= discr2->getLocalMesh()->getGlobalOffset();
+
 
     realDVec_t deltax;
     for(int d=0;d<DIMENSIONS;d++)
@@ -35,51 +52,44 @@ TEST(fft,fftw)
     }
 
 
-
     tensor_t field(shape[0],shape[1],shape[2],1);
-    tensor_t field2(shape[0],shape[1],shape[2],1);
+    tensor_t field2(shape2[0],shape2[1],shape2[2],1);
     tensor_t field3(shape[0],shape[1],shape[2],1);
-    
+
 
     field.setConstant(0);
     field2.setConstant(1);
+    
+    gp::initGaussian( {1,0.5,0.2} , discr,field,0);
+    
+    fftOp->apply(field, field2,gp::FFT_DIRECTION::FORWARD);
 
-    gp::initGaussian( 1 , discr,field,0);
+    fftOp->apply(field2, field3,gp::FFT_DIRECTION::BACKWARD);
 
-    field3=field;
+    field3=field3* (1./complex_t(N[0] * N[1] * N[2],0) );
 
-    if (numProcs == 1)
+    for(int i=0;i<shape[0];i++)
+        for(int j=0;j<shape[1];j++)
+            for(int k=0;k<shape[2];k++)
     {
-        gp::fftwFourierTransform<complex_t,complex_t> fftOp(discr,1);
-
-        fftOp.apply(field, field2,gp::FFT_DIRECTION::FORWARD);
-
-        fftOp.apply(field2, field3,gp::FFT_DIRECTION::BACKWARD);
-
-        field3=field3* (1./complex_t(N[0] * N[1] * N[2],0) );
-
-        for(int i=0;i<shape[0];i++)
-            for(int j=0;j<shape[1];j++)
-                for(int k=0;k<shape[2];k++)
-        {
-            ASSERT_NEAR( field(i,j,k,0).real(),field3(i,j,k,0).real(),TOL);
-        }
-
+        ASSERT_NEAR( field(i,j,k,0).real(),field3(i,j,k,0).real(),TOL);
+        ASSERT_NEAR( field(i,j,k,0).imag(),field3(i,j,k,0).imag(),TOL);
+        
     }
-    else
-    {
 
-    }
+    fftOp=NULL;
+
+    p3dfft::cleanup();
 
 }
 
 
 TEST(fft, derivative)
 {
-    realDVec_t left {-1,-0.5,-0.5};
-    realDVec_t right {1,0.5,0.5};
-    intDVec_t N { 200, 100, 100};
-
+    realDVec_t left {-0.5,-0.5,-0.5};
+    realDVec_t right {0.5,0.5,0.5};
+    intDVec_t N { 300, 250, 77};
+    
     p3dfft::setup();
 
     auto domain = std::make_shared<gp::domain>( left,right );
@@ -96,7 +106,8 @@ TEST(fft, derivative)
     fftC.setCommunicator(MPI_COMM_WORLD);
     fftC.setDomain(domain);
     fftC.setGlobalMesh(globalMesh);
-    fftC.setProcessorGrid(intDVec_t{numProcs,1,1});
+    fftC.setProcessorGrid(intDVec_t{1,1,numProcs});
+    fftC.setOrdering({2,0,1});
 
     auto fftOp = fftC.create();
 
@@ -118,6 +129,11 @@ TEST(fft, derivative)
 
     laplacian->apply(field, fieldL);
 
+    save(field,"gaussian.hdf5",*discrReal);
+    save(fieldL,"gaussianL.hdf5",*discrReal);
+
+
+
     auto X=positions(discrReal,0,1);
     auto Y=positions(discrReal,1,1);
     auto Z=positions(discrReal,2,1);
@@ -130,9 +146,7 @@ TEST(fft, derivative)
     Eigen::Tensor<double,0> max = (L2 - fieldL).abs().maximum(); 
     ASSERT_LE( max()  , TOL);
 
-    //save(field,"gaussian.hdf5",*discrReal);
-    //save(fieldL,"gaussianL.hdf5",*discrReal);
-
+   
     laplacian = NULL;
     fftOp=NULL;
 
@@ -164,7 +178,7 @@ TEST(fft, derivative_multipleComponents)
     fftC.setCommunicator(MPI_COMM_WORLD);
     fftC.setDomain(domain);
     fftC.setGlobalMesh(globalMesh);
-    fftC.setProcessorGrid(intDVec_t{numProcs,1,1});
+    fftC.setProcessorGrid(intDVec_t{1,1,numProcs});
     
 
     auto fftOp = fftC.create();

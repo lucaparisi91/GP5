@@ -4,10 +4,10 @@ namespace gp
 {
 
     template<class T1, class T2>
-    p3dfftFourierTransform<T1,T2>::p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm, int nComponents  )
+    p3dfftFourierTransform<T1,T2>::p3dfftFourierTransform( std::shared_ptr<domain_t> & globalDomain, std::shared_ptr<mesh_t> & globalMesh, const intDVec_t & processors , MPI_Comm comm, int nComponents, const intDVec_t & ordering  )
         {
-        this->setNComponents(nComponents);
 
+        this->setNComponents(nComponents);
         _discr=std::make_shared<discretization_t>();
         _discr->setDomain(globalDomain);
         _discr->setGlobalMesh(globalMesh);
@@ -17,8 +17,6 @@ namespace gp
 
         _discr2=std::make_shared<discretization_t>();
         
-        _discr2->setGlobalMesh(globalMesh);
-        _discr2->setDomain(globalDomain);
         _discr2->setCommunicator(comm);
         
         int type_ids1[3] = { p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D,p3dfft::CFFT_FORWARD_D};
@@ -26,31 +24,23 @@ namespace gp
 
         int pdims[] = { processors[0] , processors[1] , processors[2] };
         int mem_order1[] = {0,1,2};
-        int mem_order2[] = {0,1,2};
-        
+        int mem_order2[] = {ordering[0],ordering[1],ordering[2] };
 
         int dmap1[] = {0,1,2};
-        int dmap2[] = {0,1,2};
-        
+        int dmap2[] = { ordering[0],ordering[1],ordering[2]};
+        //int dmap2[] = { 1 , 0 , 2};
+
 
         int gdims[] = { globalShape[0] , globalShape[1] , globalShape[2] };
 
-
-       
-
         auto type_forward = p3dfft_init_3Dtype(type_ids1);
-
         auto type_backward = p3dfft_init_3Dtype(type_ids2);
         
-         Pgrid = p3dfft_init_proc_grid(pdims,comm);
-
+        Pgrid = p3dfft_init_proc_grid(pdims,comm);
 
         Xpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap1,mem_order1);
         
-        
         Zpencil = p3dfft_init_data_grid(gdims,-1,Pgrid,dmap2,mem_order2);
-        
-        
 
         trans_f = p3dfft_plan_3Dtrans(Xpencil,Zpencil,type_forward);
         trans_b = p3dfft_plan_3Dtrans(Zpencil,Xpencil,type_backward);
@@ -60,22 +50,32 @@ namespace gp
         for( int i=0;i<DIMENSIONS;i++) {
             offset[ mem_order1[i] ] = Xpencil->GlobStart[i];
             localShape[ mem_order1[i] ] = Xpencil->Ldims[i];
-            offset2[ mem_order2[i] ] = Zpencil->GlobStart[i];
-            localShape2[ mem_order2[i] ] = Zpencil->Ldims[i];
-
-            //std::cout << i << " "<<localShape2[i] << std::endl;
-
+            offset2[ mem_order2[i] ] = Zpencil->GlobStart[  i ];
+            localShape2[ mem_order2[i] ] = Zpencil->Ldims[ i ];
         }
+            int numProcs,rank;
 
+            MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
+            MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+       /*  for(int i=0 ; i<DIMENSIONS;i++)
+        {
+            std::cout << rank << " " << i << " " << offset2[i] << " " << localShape2[i] << std::endl;
+        } */
 
         auto localMesh=std::make_shared<mesh_t>( localShape);
         auto localMesh2=std::make_shared<mesh_t>( localShape2);
 
+
         localMesh->setGlobalOffset(offset);
         localMesh2->setGlobalOffset(offset2);
 
+
         _discr->setLocalMesh(localMesh);
         _discr2->setLocalMesh(localMesh2);
+
+        _discr2->setDomain(globalDomain->permute(ordering));
+        _discr2->setGlobalMesh(globalMesh->permute(ordering) );
+
         }
 
     template<class T1,class T2>
@@ -227,7 +227,7 @@ std::shared_ptr<fourierTransform<T1,T2> > fourierTransformCreator<T1,T2>::create
         }
         else
         {
-            auto fftOp=std::make_shared<gp::p3dfftFourierTransform<T1,T2>  >( _domain,_globalMesh,_processorGrid,_comm,_nComponents);
+            auto fftOp=std::make_shared<gp::p3dfftFourierTransform<T1,T2>  >( _domain,_globalMesh,_processorGrid,_comm,_nComponents,_ordering);
 
             return fftOp;
         }
@@ -241,7 +241,8 @@ fourierTransformCreator<T1,T2>::fourierTransformCreator()
     _domain = NULL;
     _globalMesh = NULL;
     _processorGrid = {-1,-1,-1};
-
+    _ordering = {2,1,0};
+    
     _comm = MPI_COMM_WORLD;
 }
 

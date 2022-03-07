@@ -1,11 +1,12 @@
 mesh:
   shape: [ 20  , 20  , 20 ]
-
 domain:
   left: [-10,-10,-10]
   right: [ 10,10, 10 ]
 parallel:
-  processorGrid: [ 1 , 1 , 1]
+  processorGrid: [ 1 , 1 , 2 ]
+  fftOrdering : [ 2 , 0 , 1 ]
+
 
 wavefunction:
   nComponents : 1

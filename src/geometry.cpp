@@ -2,24 +2,18 @@
 #include <iostream>
 #include "tools.h"
 
-
 namespace gp{
+
     mesh::mesh( const intDVec_t & N) :
     _N(N)
     {
-        _size=1;
         for(int d=0;d<DIMENSIONS;d++)
         {
-            
-            _size*=_N[d];
-
             _nGhosts[d]=0;
-
             _offset[d]=0;
         }
 
     }
-
 
 
     domain::domain() :
@@ -42,6 +36,18 @@ namespace gp{
         }
     }
 
+    std::shared_ptr<domain> domain::permute( const  intDVec_t & order) const 
+    {
+        realDVec_t left2,right2;
+        for(int i=0;i<DIMENSIONS;i++)
+        {
+            left2[  order[i] ] = _left[ i ];
+            right2[ order[i] ] = _right[ i ];
+        }
+
+        return std::make_shared<domain>(left2,right2);
+    }
+
     discretization::discretization()
     {
 
@@ -60,7 +66,6 @@ namespace gp{
         int pgrid[] = { processorGrid[0], processorGrid[1],processorGrid[2] };
         int periods[] = { 1, 1, 1};
         int coords [ ] = {-1, -1 ,-1};
-
 
         MPI_Comm newComm;
 
@@ -107,6 +112,7 @@ tensor_t momentums(std::shared_ptr<discretization> discr,int d, int nComponents)
     const auto & shape = discr->getLocalMesh()->shape();
     const auto & offset = discr->getLocalMesh()->getGlobalOffset();
 
+    
     tensor_t K( shape[0],shape[1],shape[2],nComponents);
 
     for(int i=0;i<shape[0];i++)
@@ -221,13 +227,12 @@ void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretizatio
                 
 }
 
+void initGaussian( real_t sigma, std::shared_ptr<discretization> discr, tensor_t & tensor, int comp)
+{
+    return initGaussian( {sigma,sigma,sigma},discr,tensor,comp);
+}
 
-
-
-
-
-
-void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t & field, int comp)
+void initGaussian( const realDVec_t & sigma, std::shared_ptr<discretization> discr, tensor_t & field, int comp)
 {
     const auto & shape= discr->getLocalMesh()->shape();
     const auto & offset= discr->getLocalMesh()->getGlobalOffset();
@@ -241,7 +246,8 @@ void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t 
         deltax[d]=discr->getSpaceStep(d);
     }
     
-    real_t alpha=1./(2*sigma*sigma);
+    realDVec_t alpha={1./(2*sigma[0]*sigma[0])   ,1./(2*sigma[1]*sigma[1]), 1./(2*sigma[2]*sigma[2])   };
+
     for(int i=0;i<shape[0];i++)
         for(int j=0;j<shape[1];j++)
             for(int k=0;k<shape[2];k++)
@@ -250,12 +256,28 @@ void initGaussian(real_t sigma, std::shared_ptr<discretization> discr, tensor_t 
                 real_t y = left[1] + (j + offset[1] +0.5)*deltax[1];
                 real_t z = left[2] + (k + offset[2] +0.5)*deltax[2];
 
-                real_t r2 = x*x + y*y + z*z;
-                field(i,j,k,comp)=complex_t(exp(-alpha*r2),0) ;
+                
+                real_t tmp = alpha[0]*x*x + alpha[1]*y*y + alpha[2]*z*z;
+
+                field(i,j,k,comp)=complex_t(exp(-tmp),0) ;
             }
               
 }
 
+std::shared_ptr<mesh> mesh::permute( const intDVec_t & ordering ) const
+{
+    intDVec_t N2, offset2;
+    for(int d=0;d<DIMENSIONS;d++)
+    {
+        offset2[ordering[d] ]=_offset[d];
+        N2[ordering[d] ]=_N[d ];
+    }
+
+    auto mesh2 = std::make_shared<mesh>( N2 );
+    mesh2->setGlobalOffset(offset2);
+
+    return mesh2;
+}
 
 
 

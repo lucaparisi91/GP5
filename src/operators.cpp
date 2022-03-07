@@ -1,5 +1,6 @@
 #include "operators.h"
 
+
 namespace gp{
     namespace operators
     {
@@ -20,10 +21,9 @@ namespace gp{
             *K2 = KX*KX + KY*KY + KZ*KZ;
 
             fieldK=std::make_shared<tensor_t>(shapeFourier[0],shapeFourier[1],shapeFourier[2],nComponents);
-
             
         }
-
+        
 
         void laplacian::apply( tensor_t & source, tensor_t & destination)
         {
