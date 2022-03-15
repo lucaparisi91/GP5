@@ -1,4 +1,6 @@
 #include "fourierTransform.h"
+#include "timers.h"
+
 
 namespace gp
 {
@@ -90,6 +92,9 @@ namespace gp
     template<class T1,class T2>
     void p3dfftFourierTransform<T1,T2>::apply(tensor_t & field,tensor_t & field2,FFT_DIRECTION direction)
     {
+
+        START_TIMER( "FFT");
+
         auto fftSize=getDiscretizationFourierSpace()->getLocalMesh()->size();
         auto realSize=getDiscretizationRealSpace()->getLocalMesh()->size();
 
@@ -112,7 +117,10 @@ namespace gp
         else
         {
             throw std::runtime_error("Unkown FFT direction");
-        }        
+        }
+
+        STOP_TIMER( "FFT");
+
 
     }
 
@@ -175,6 +183,9 @@ void fftwFourierTransform<T1,T2>::init( tensor_t & field  )
 template<class T1,class T2>
 void fftwFourierTransform<T1,T2>::apply(   tensor_t & source , tensor_t &  destination, FFT_DIRECTION dir )
 {
+
+    START_TIMER( "FFT");
+
     auto sizeReal = getDiscretizationRealSpace()->getLocalMesh()->size();
     auto sizeFFT = getDiscretizationFourierSpace()->getLocalMesh()->size();
 
@@ -197,6 +208,8 @@ void fftwFourierTransform<T1,T2>::apply(   tensor_t & source , tensor_t &  desti
     {
         throw std::runtime_error("Unkown direction in fourier transform");
     }
+
+    STOP_TIMER( "FFT");
 
 };
 

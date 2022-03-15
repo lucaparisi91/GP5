@@ -2,6 +2,7 @@ import numpy as np
 import yaml
 from gp import field
 
+
 def generateGrid( meshShape, domain ):
     D=len(meshShape)
     lBox = [ domain[d][1] - domain[d][0]  for d in  range(D) ]

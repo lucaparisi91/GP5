@@ -113,6 +113,8 @@ void initGaussian( const realDVec_t & sigma, std::shared_ptr<discretization> dis
 
 void initGaussian( real_t sigma, std::shared_ptr<discretization> discr, tensor_t & tensor, int comp);
 
+void applyVortexPhase( std::shared_ptr<discretization> discr, tensor_t & field, int comp);
+
 
 void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretization> discr);
 real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & discr );

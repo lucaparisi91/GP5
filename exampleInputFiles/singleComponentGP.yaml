@@ -1,12 +1,11 @@
 mesh:
-  shape: [ 20  , 20  , 20 ]
+  shape: [ 30  , 30  , 30 ]
 domain:
-  left: [-10,-10,-10]
+  left: [-10,-10,-10 ]
   right: [ 10,10, 10 ]
 parallel:
-  processorGrid: [ 1 , 1 , 2 ]
-  fftOrdering : [ 2 , 0 , 1 ]
-
+  processorGrid: [ 1 , 1 , 1 ]
+  fftOrdering : [ 2 , 0  , 1 ]
 
 wavefunction:
   nComponents : 1
@@ -30,14 +29,21 @@ functional:
 
 
 evolution:
-  timeStep: 5e-5
-  imaginaryTime: True
+  timeStep: 1e-4
+  imaginaryTime: False
   stepper: "RK4" # allowed steppers : [ RK4, eulero ]
-  maxTime: 500
+  maxTime: 100
+  reNormalize: False
+
+#  constraint: 
+#    vortexPhase:
+#      file : "phi.hdf5"
+#      name : "phaseConstraint"
+
 
 initialCondition:
   file: "init.hdf5"
 
 output:
   folder: "output"
-  nIterations : 2000 # number of iterations between outputs
+  nIterations : 1000 # number of iterations between outputs

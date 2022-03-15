@@ -85,6 +85,8 @@ int main(int argc,char** argv)
     p3dfft_free_proc_grid(Pgrid);
     p3dfft_cleanup();
 
+
+
     MPI_Finalize();
 
 }

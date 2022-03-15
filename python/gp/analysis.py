@@ -12,11 +12,11 @@ import pandas as pd
 from gp import field
 
 
+
 class analysis:
     def __init__( self,settings, runFolder=".", observables=[] ):
         self.runFolder=runFolder
         self.settings=settings
-
         self.outputFolder=os.path.join(self.runFolder,self.settings.output.folder)
         self.observables=observables
 

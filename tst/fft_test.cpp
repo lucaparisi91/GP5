@@ -15,7 +15,6 @@ TEST(fft,forward_backward)
 
     p3dfft::setup();
 
-
     auto domain = std::make_shared<gp::domain>( left,right );
     auto globalMesh = std::make_shared<gp::mesh>( N);
     MPI_Comm comm(MPI_COMM_WORLD);
@@ -83,7 +82,6 @@ TEST(fft,forward_backward)
 
 }
 
-
 TEST(fft, derivative)
 {
     realDVec_t left {-0.5,-0.5,-0.5};
@@ -142,10 +140,10 @@ TEST(fft, derivative)
     complex_t alpha=1/(2*sigma*sigma) + 1j*0;
 
     auto L2 = (-alpha*R2 ).exp() * (-R2*alpha*complex_t(2,0) + complex_t(3,0)) * complex_t(-2,0)*alpha;
-    
+
+
     Eigen::Tensor<double,0> max = (L2 - fieldL).abs().maximum(); 
     ASSERT_LE( max()  , TOL);
-
    
     laplacian = NULL;
     fftOp=NULL;
@@ -214,5 +212,8 @@ TEST(fft, derivative_multipleComponents)
 
     p3dfft::cleanup();
 
-
 }
+
+
+
+

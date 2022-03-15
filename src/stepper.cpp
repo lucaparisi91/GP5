@@ -3,19 +3,31 @@
 
 namespace gp
 {
+    stepper::stepper() :
+    _reNormalize(true)
+    {
+        _constraint=std::make_shared<nullConstraint>();
+        
+    }
     void euleroStepper::advance(  tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
     {
-
+        
         getFunctional()->apply(fieldDataOld,fieldDataNew,time);
 
         fieldDataNew= fieldDataOld - timeStep()*fieldDataNew;
         int nComponents=fieldDataOld.dimensions()[DIMENSIONS];
-        
-        for(int c=0;c<nComponents;c++)
-        {
-            normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
-        };
 
+
+        getConstraint()->apply(fieldDataNew);
+
+
+        if ( reNormalize() )
+        {    
+            for(int c=0;c<nComponents;c++)
+            {
+                normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
+            };
+        }
     }
     
 
@@ -37,11 +49,15 @@ namespace gp
 
         int nComponents=fieldDataOld.dimensions()[DIMENSIONS];
 
-        for(int c=0;c<nComponents;c++)
-        {
-            normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
-        };  
-
+        getConstraint()->apply(fieldDataNew);
+        if ( reNormalize() )
+        {    
+        
+            for(int c=0;c<nComponents;c++)
+            {
+                normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
+            };  
+        }
     }
 
     void RK4Stepper::init()

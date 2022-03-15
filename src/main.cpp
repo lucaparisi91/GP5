@@ -9,6 +9,7 @@
 #include "stepper.h"
 #include <filesystem>
 #include "externalPotential.h"
+#include "timers.h"
 
 int main(int argc,char** argv)
 {
@@ -21,17 +22,13 @@ int main(int argc,char** argv)
     }
 
     std::string confFileName(argv[1]);
-
     int numProcs,rank;
 
     MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
 
-
     YAML::Node config = YAML::LoadFile(confFileName);
-
-    // ######## Set up the geometry #####################
-    
+    // ########## Set up the geometry ####################
     auto globalShape= config["mesh"]["shape"].as<intDVec_t>();
     auto globalMesh = std::make_shared<gp::mesh>(globalShape);
 
@@ -53,16 +50,17 @@ int main(int argc,char** argv)
     }
 
 
-    gp::fourierTransformCreator<complex_t,complex_t> fftC;
-    fftC.setNComponents(nComponents);
-    fftC.setCommunicator(MPI_COMM_WORLD);
-    fftC.setDomain(domain);
-    fftC.setGlobalMesh(globalMesh);
-    fftC.setProcessorGrid( processorGrid);
-    fftC.setOrdering(ordering);
+    auto fftC = std::make_shared< gp::fourierTransformCreator<complex_t,complex_t> >();
+
+    fftC->setNComponents(nComponents);
+    fftC->setCommunicator(MPI_COMM_WORLD);
+    fftC->setDomain(domain);
+    fftC->setGlobalMesh(globalMesh);
+    fftC->setProcessorGrid( processorGrid);
+    fftC->setOrdering(ordering);
 
 
-    auto fftOp = fftC.create();
+    auto fftOp = fftC->create();
     
     // ############### Builds the functionals
     if (rank == 0)
@@ -76,17 +74,16 @@ int main(int argc,char** argv)
 
     auto discr = fftOp->getDiscretizationRealSpace();
 
-    gp::functionalConstructor funcC;
+    auto funcC=std::make_shared<gp::functionalConstructor>();
 
-    funcC.setLaplacianOperator(laplacian);
-    funcC.setDiscretization(discr);
-    funcC.setNComponents(nComponents);
+    funcC->setLaplacianOperator(laplacian);
+    funcC->setDiscretization(discr);
+    funcC->setNComponents(nComponents);
 
-
-
-    auto func = funcC.create(config["functional"]);
+    auto func = funcC->create(config["functional"]);
 
     auto localShape = discr->getLocalMesh()->shape();
+
 
 //  ####### initialize fields 
     if (rank == 0)
@@ -94,7 +91,6 @@ int main(int argc,char** argv)
 
         std::cerr << "Initializing fields ..." <<std::endl;
     }
-
 
     tensor_t oldField(localShape[0],localShape[1],localShape[2],nComponents);
     tensor_t newField(localShape[0],localShape[1],localShape[2],nComponents);
@@ -109,7 +105,6 @@ int main(int argc,char** argv)
 
     oldField = load( initialConditionFileName , *discr, nComponents);
 
-
 // ############ initialize stepper #####################
 
     if (rank == 0)
@@ -122,7 +117,7 @@ int main(int argc,char** argv)
     auto timeStep = stepperConfig["timeStep"].as<real_t>();
     auto stepperName = stepperConfig["stepper"].as<std::string>();
     auto isImaginary = stepperConfig["imaginaryTime"].as<bool>();    
-
+    bool reNormalize = stepperConfig["reNormalize"].as<bool>();
     
     std::shared_ptr<gp::stepper> stepper;
 
@@ -141,33 +136,67 @@ int main(int argc,char** argv)
     }
     else
     {
-        stepper->setTimeStep( complex_t ( 0,-timeStep ));
+        stepper->setTimeStep( complex_t ( 0,timeStep ));
     }
-
 
     stepper->setFunctional(func);
     stepper->setNComponents(nComponents);
     stepper->setDiscretization(discr);
     stepper->setNormalizations( normalizations);
-    stepper->init();
+    stepper->enableReNormalization(reNormalize);
 
+    for(auto it=stepperConfig.begin();it!=stepperConfig.end();it++)
+    {
+        if  ( it->first.as<std::string>() == "constraint")
+        {
+            gp::constraintConstructor constrC;
+            constrC.setDiscretization( discr);
+            constrC.setNComponents( nComponents);
+
+            auto constraint = constrC.create(it->second);
+
+            stepper->setConstraint(constraint);
+            
+        }
+    }
+    stepper->init();
 
     auto maxTime = stepperConfig["maxTime"].as<real_t>();
     
     auto outDir = config["output"]["folder"].as<std::string>();
     auto nIterations = config["output"]["nIterations"].as<size_t>();
 
-
     if ( not  std::filesystem::exists(outDir) )
     {
         std::filesystem::create_directories(outDir);
     }
 
-// load time stepping rules
+
+    if (rank == 0)
+    {
+        std::cerr << "START" <<std::endl;
+    }
+    
+    START_TIMER("total");
+
+
+
     real_t t=0;
     int k=0;
     while ( t <= maxTime)
     {
+        if (rank == 0)
+        {
+            std::cout << "Time: " << t << std::endl;
+        }
+
+        gp::save( oldField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
+        if (rank == 0)
+        {
+            std::cout << "saved" << std::endl;
+        }
+
+
        
         for( int  i=0;i<nIterations;i++)
         {
@@ -177,26 +206,38 @@ int main(int argc,char** argv)
         }
         k++;
 
-        if (rank == 0)
-        {
-            std::cout << "Time: " << t << std::endl;
-        }
-
-        gp::save( newField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
-        if (rank == 0)
-        {
-            std::cout << "saved" << std::endl;
-        }
-
         
         
     }
+    STOP_TIMER("total");
 
-    
+
+    /* int cRank = 0;
+    while ( cRank < numProcs) {
+        if (cRank == rank) {
+            std::cerr << "Rank: " << std::to_string(rank) << std::endl; 
+            std::cerr << timers::getInstance().report() << std::endl;        
+            std::cerr << std::flush;
+        }
+        cRank ++;
+        MPI_Barrier (MPI_COMM_WORLD);
+    }
+ */
+
+    if (rank == 0 )
+    {
+        std::cerr << "Rank: " << std::to_string(rank) << std::endl; 
+        std::cerr << timers::getInstance().report() << std::endl;        
+        std::cerr << std::flush;
+    }
+
     stepper=NULL;
     fftOp=NULL;
     func=NULL;
     laplacian=NULL;
+    discr=NULL;
+    fftC = NULL;
+    funcC=NULL;
     
     p3dfft::cleanup();
 

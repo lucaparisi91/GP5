@@ -1,6 +1,7 @@
 #include "functional.h"
 #include "externalPotential.h"
 
+
 namespace gp{
 
     gpFunctional::gpFunctional() :
@@ -148,8 +149,6 @@ void LHYDropletUnlockedFunctional::apply( tensor_t & fieldDataOld, tensor_t & fi
 
 
 
-
-
 std::shared_ptr<functional> functionalConstructor::create(const config_t & settings)
 {       
     std::shared_ptr<gp::functional> func=NULL;
@@ -226,9 +225,8 @@ std::shared_ptr<functional> functionalConstructor::create(const config_t & setti
             throw std::runtime_error(" Unkown functional");
         }
 
-    }                
+    }
 
-    
     
     for ( auto itF = settings.begin() ; itF != settings.end() ; itF++)
     {
@@ -244,8 +242,7 @@ std::shared_ptr<functional> functionalConstructor::create(const config_t & setti
             {
                 auto V = pot->create(_discr,_nComponents);
                 func->setExternalPotential(V);
-            }      
-
+            }
 
         }
     }
@@ -256,7 +253,6 @@ std::shared_ptr<functional> functionalConstructor::create(const config_t & setti
     func->init();
 
     return func;
-
 }
 
 

@@ -1,6 +1,8 @@
 #include "traits.h"
 #include "functional.h"
 #include "geometry.h"
+#include "constraint.h"
+
 
 namespace gp
 {
@@ -8,6 +10,8 @@ namespace gp
     {
 
         public:
+
+        stepper();
 
         using functional_t = functional;
 
@@ -41,6 +45,14 @@ namespace gp
 
         auto getDiscretization() {return _discr;}
 
+        void enableReNormalization(bool enable ) {_reNormalize=enable;}
+        bool reNormalize() const  {return _reNormalize;}
+
+        auto getConstraint() const {return _constraint; }
+        
+        void  setConstraint(std::shared_ptr<constraint> constr) { _constraint=constr; }
+        
+
         private:
 
         complex_t _timeStep;
@@ -49,6 +61,9 @@ namespace gp
         int _nComponents=0;
         std::vector<real_t> _normalizations;
         std::shared_ptr<discretization> _discr;
+        bool _reNormalize;
+        
+        std::shared_ptr<constraint> _constraint;
     };
 
     class euleroStepper : public stepper
