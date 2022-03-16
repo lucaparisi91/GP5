@@ -1,6 +1,6 @@
 #include "stepper.h"
 #include <iostream>
-
+#include "timers.h"
 namespace gp
 {
     stepper::stepper() :
@@ -11,16 +11,18 @@ namespace gp
     }
     void euleroStepper::advance(  tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
     {
-        
-        getFunctional()->apply(fieldDataOld,fieldDataNew,time);
+        START_TIMER("step");
 
+        getFunctional()->apply(fieldDataOld,fieldDataNew,time);
         fieldDataNew= fieldDataOld - timeStep()*fieldDataNew;
         int nComponents=fieldDataOld.dimensions()[DIMENSIONS];
 
+        STOP_TIMER("step");    
 
         getConstraint()->apply(fieldDataNew);
 
 
+        START_TIMER("normalize");
         if ( reNormalize() )
         {    
             for(int c=0;c<nComponents;c++)
@@ -28,11 +30,14 @@ namespace gp
                 normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
             };
         }
+        STOP_TIMER("normalize");
+
     }
     
 
     void RK4Stepper::advance(  tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
-    {    
+    {
+        START_TIMER("step");    
         getFunctional()->apply(fieldDataOld,k1,time);
         fieldDataNew= fieldDataOld - timeStep()*0.5*k1;
         
@@ -48,8 +53,11 @@ namespace gp
         fieldDataNew=fieldDataOld - (1./6) * timeStep()*(k1 + 2 * k2 + 2*k3 + k4);
 
         int nComponents=fieldDataOld.dimensions()[DIMENSIONS];
+        STOP_TIMER("step");    
 
         getConstraint()->apply(fieldDataNew);
+
+        START_TIMER("normalize");
         if ( reNormalize() )
         {    
         
@@ -58,6 +66,9 @@ namespace gp
                 normalize( normalizations()[c],fieldDataNew,c,getDiscretization() );
             };  
         }
+        STOP_TIMER("normalize");
+
+
     }
 
     void RK4Stepper::init()

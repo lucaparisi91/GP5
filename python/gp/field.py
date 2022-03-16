@@ -42,14 +42,14 @@ def saveNetCDF(psi,filename):
     zDim=rootgrp.createDimension("Z", psi.shape[2])
 
     for c in range(psi.shape[3]):
-        rhoVar= rootgrp.createVariable("rho{:d}".format(c),"f8",("Z","Y","X"))
+        rhoVar= rootgrp.createVariable("rho{:d}".format(c),"f8",("X","Y","Z"))
         rhoVar[:,:,:]=rho[:,:,:,c]
         rhoVar.units="K"
     
     phi=np.angle(psi)
     for c in range(psi.shape[3]):
         
-        phiVar= rootgrp.createVariable("phi{:d}".format(c),"f8",("Z","Y","X"))
+        phiVar= rootgrp.createVariable("phi{:d}".format(c),"f8",("X","Y","Z"))
         phiVar[:,:,:]=phi[:,:,:,c]
         phiVar.units="K"
     rootgrp.close()

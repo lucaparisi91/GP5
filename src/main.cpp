@@ -190,11 +190,13 @@ int main(int argc,char** argv)
             std::cout << "Time: " << t << std::endl;
         }
 
+        START_TIMER("io");
         gp::save( oldField, outDir + "/out_" + std::to_string(k) + ".hdf5" , *discr  );
         if (rank == 0)
         {
             std::cout << "saved" << std::endl;
         }
+        STOP_TIMER("io");
 
 
        

@@ -32,7 +32,7 @@ evolution:
   timeStep: 1e-4
   imaginaryTime: False
   stepper: "RK4" # allowed steppers : [ RK4, eulero ]
-  maxTime: 100
+  maxTime: 30
   reNormalize: False
 
 #  constraint: 
@@ -46,4 +46,4 @@ initialCondition:
 
 output:
   folder: "output"
-  nIterations : 1000 # number of iterations between outputs
+  nIterations : 300 # number of iterations between outputs

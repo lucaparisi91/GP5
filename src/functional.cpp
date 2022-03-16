@@ -119,6 +119,8 @@ void LHYDropletFunctional::apply( tensor_t & fieldDataOld, tensor_t & fieldDataN
                         auto density= std::norm(fieldDataOld(i,j,k,c));
                         fieldDataNew(i,j,k,c)=-0.5*fieldDataNew(i,j,k,c) + ( -3 * density + 5/2. * std::pow(density,3/2.))*fieldDataOld(i,j,k,c); 
                     }    
+        addPotential(fieldDataOld,fieldDataNew,time);
+            
 
     }
 
@@ -144,6 +146,9 @@ void LHYDropletUnlockedFunctional::apply( tensor_t & fieldDataOld, tensor_t & fi
                             _eta*_beta*density1 + _beta*density2 + _alpha*_beta*_beta*std::pow(density1 + _beta*density2,3./2)
                         )*fieldDataOld(i,j,k,1); 
                     }
+        
+        addPotential(fieldDataOld,fieldDataNew,time);
+        
 
     }
 

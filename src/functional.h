@@ -87,7 +87,7 @@ namespace gp
     class LHYDropletFunctional : public functional
     {
         public:
-        LHYDropletFunctional() {}
+        LHYDropletFunctional() : functional() {}
 
         virtual void apply( tensor_t & source, tensor_t & destination, real_t time ) override;
 
@@ -97,7 +97,7 @@ namespace gp
     class LHYDropletUnlockedFunctional : public functional
     {
         public:
-        LHYDropletUnlockedFunctional(real_t alpha, real_t beta,real_t eta) : _alpha(alpha),_beta(beta),_eta(eta) {}
+        LHYDropletUnlockedFunctional(real_t alpha, real_t beta,real_t eta) : functional(),_alpha(alpha),_beta(beta),_eta(eta) {}
 
         virtual void apply( tensor_t & source, tensor_t & destination, real_t time ) override;
 

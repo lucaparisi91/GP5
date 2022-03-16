@@ -3,12 +3,12 @@
 
 namespace gp {
 
-
     void phaseConstraint::apply(tensor_t & field) const 
     {
         field=(field*field.conjugate()).sqrt()*_phase_exp;
     }
 
+    
     phaseConstraint::phaseConstraint(const tensor_t & phase) :
     _phase(phase),
     _phase_exp(phase)
