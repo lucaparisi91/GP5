@@ -2,7 +2,6 @@
 #include <mpi.h>
 #include <p3dfft.h>
 
-
 int main(int argc,char** argv)
 {
     std::array<real_t,3> lBox = { 1, 1, 1 } ;
@@ -84,7 +83,6 @@ int main(int argc,char** argv)
     p3dfft_free_data_grid(Zpencil);
     p3dfft_free_proc_grid(Pgrid);
     p3dfft_cleanup();
-
 
 
     MPI_Finalize();

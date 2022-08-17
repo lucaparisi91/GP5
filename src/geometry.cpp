@@ -187,7 +187,7 @@ tensor_t positions(std::shared_ptr<discretization> discr,int d, int nComponents)
     return X;
 }
 
-real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & discr )
+real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization>  discr )
 {
     const auto & dimensions= field.dimensions();
     real_t sum=0;
@@ -213,9 +213,10 @@ real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & di
 
 }
 
+
 void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretization> discr)
 {
-    auto normInverseSqrt =sqrt( N  * 1./norm(field,c,discr) );
+    auto normInverseSqrt =sqrt( N  * 1./gp::norm(field,c,discr) );
     const auto & dimensions=field.dimensions();
 
     for(int k=0;k<dimensions[2];k++)

@@ -2,8 +2,6 @@ import h5py
 import numpy as np
 from netCDF4 import Dataset
 
-
-
 def load( file ):
     f = h5py.File(file, 'r')
     field=np.array(f["field"][:,:,:,:])
@@ -57,4 +55,4 @@ def saveNetCDF(psi,filename):
     rootgrp.close()
 
 
-
+    

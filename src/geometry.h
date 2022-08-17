@@ -117,7 +117,7 @@ void applyVortexPhase( std::shared_ptr<discretization> discr, tensor_t & field, 
 
 
 void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretization> discr);
-real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> & discr );
+real_t norm( const tensor_t & field, int c, std::shared_ptr<discretization> discr );
 
 
 

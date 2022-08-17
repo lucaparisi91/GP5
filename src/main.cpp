@@ -48,7 +48,7 @@ int main(int argc,char** argv)
     {
         std::cerr << "Initializing FFT operator ..." <<std::endl;
     }
-
+    
 
     auto fftC = std::make_shared< gp::fourierTransformCreator<complex_t,complex_t> >();
 
@@ -81,9 +81,8 @@ int main(int argc,char** argv)
     funcC->setNComponents(nComponents);
 
     auto func = funcC->create(config["functional"]);
-
+    
     auto localShape = discr->getLocalMesh()->shape();
-
 
 //  ####### initialize fields 
     if (rank == 0)
@@ -211,8 +210,9 @@ int main(int argc,char** argv)
         
         
     }
-    STOP_TIMER("total");
 
+    
+    STOP_TIMER("total");
 
     /* int cRank = 0;
     while ( cRank < numProcs) {

@@ -1,7 +1,6 @@
 #include "functional.h"
 #include "externalPotential.h"
 
-
 namespace gp{
 
     gpFunctional::gpFunctional() :
@@ -103,7 +102,6 @@ namespace gp{
     }
 
 
-
 void LHYDropletFunctional::apply( tensor_t & fieldDataOld, tensor_t & fieldDataNew, real_t time )
     {
         getLaplacianOperator()->apply(fieldDataOld,fieldDataNew);
@@ -120,7 +118,6 @@ void LHYDropletFunctional::apply( tensor_t & fieldDataOld, tensor_t & fieldDataN
                         fieldDataNew(i,j,k,c)=-0.5*fieldDataNew(i,j,k,c) + ( -3 * density + 5/2. * std::pow(density,3/2.))*fieldDataOld(i,j,k,c); 
                     }    
         addPotential(fieldDataOld,fieldDataNew,time);
-            
 
     }
 

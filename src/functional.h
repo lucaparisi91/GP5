@@ -9,7 +9,7 @@ namespace gp
     class functional
     {
     public:
-
+        
         functional() : _nComponents(1),_setExternalPotential(false) {}
 
         virtual void apply( tensor_t & fieldOld, tensor_t & fieldNew, real_t time )=0;
@@ -47,11 +47,14 @@ namespace gp
 
     };
 
+
     class gpFunctional : public functional
     {
         public:
-        
+
+
         gpFunctional() ;
+
 
         virtual void setCouplings( const  Eigen::Tensor<real_t,2> & couplings) {_couplings=couplings;_setCouplings=true; }
 

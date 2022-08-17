@@ -62,7 +62,7 @@ namespace gp
         std::vector<real_t> _normalizations;
         std::shared_ptr<discretization> _discr;
         bool _reNormalize;
-        
+
         std::shared_ptr<constraint> _constraint;
     };
 
@@ -77,6 +77,7 @@ namespace gp
         private:
 
     };
+
 
     class RK4Stepper : public stepper
     {

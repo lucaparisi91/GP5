@@ -12,3 +12,10 @@ configure(gp)
 
 
 
+pybind11_add_module( gpCpp gpCpp.cpp pyTools.cpp )
+target_link_libraries(gpCpp PUBLIC gp_lib)
+configure(gpCpp)
+
+
+
+
