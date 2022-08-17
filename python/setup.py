@@ -51,6 +51,6 @@ setup(
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     python_requires=">=3.6",
-    packages=find_packages(),
+    packages=["gp"],
 
 )

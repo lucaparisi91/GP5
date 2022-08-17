@@ -2,6 +2,9 @@ import gpCpp
 import mpi4py
 from mpi4py  import  MPI
 import numpy as np
+import os
+from pathlib import Path
+
 
 class geometry:
     def __init__( self,shape,left=[-1,-1,-1],right=[1,1,1]):
@@ -97,6 +100,9 @@ class field:
 
 
     def save(self,filename):
+        dir=Path(os.path.dirname(filename) )
+        dir.mkdir(parents=True,exist_ok=True)
+        
         self._fieldCpp.save(filename)
     def load(self,filename):
         self._fieldCpp.load( filename)
