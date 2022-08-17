@@ -138,11 +138,12 @@ class field
     auto getFFTOp() {return _fftOp; }
 
     private:
-
+    
     std::shared_ptr<gp::domain> _domain;
     std::shared_ptr<gp::fourierTransform<value_t,value_t> > _fftOp;
     std::shared_ptr< Eigen::Tensor<value_t,4> > _state ;
     int _nComponents;
+
 };
 
 class model

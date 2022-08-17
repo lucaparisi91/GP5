@@ -2,8 +2,6 @@ from platform import processor
 from gp import gp
 import unittest
 import numpy as np
-import matplotlib.pylab as plt
-import tqdm
 from mpi4py import MPI
 
 
@@ -120,7 +118,7 @@ class testField(unittest.TestCase):
 
         assert( np.max(np.abs(psi_expected - np.real(psi2.array)) ) <1e-4 )
         
-        plt.show()
+        #plt.show()
 
     def test_renormalize(self):
         comm = MPI.COMM_WORLD
@@ -202,7 +200,7 @@ class testField(unittest.TestCase):
     def test_io(self):
         comm = MPI.COMM_WORLD
         size = comm.Get_size()
-
+        
         geo=gp.geometry( ( 50, 50, 50 ) , left=[-32,-32,-32] , right=[32,32,32] )
         psi=gp.field(geo,nComponents=1,processorGrid=[size,1,1])
         X,Y,Z = psi.grid()
@@ -215,16 +213,8 @@ class testField(unittest.TestCase):
         psi.array=psi0*0
 
         psi.load("test.hdf5")
-        
 
         self.assertAlmostEqual(np.sum(np.abs(psi.array - psi0)) , 0 )
-
-
-
-
-
-    
-
 
         
         

@@ -2,8 +2,6 @@ import gpCpp
 import mpi4py
 from mpi4py  import  MPI
 import numpy as np
-import tqdm
-
 
 class geometry:
     def __init__( self,shape,left=[-1,-1,-1],right=[1,1,1]):
@@ -147,8 +145,6 @@ class stepper:
     @property
     def timeStep(self):
         return self._timeStep
-    
-
 
 
 class maxDensity:
@@ -160,7 +156,8 @@ class maxDensity:
         maxDensity=np.array([maxDensityLocal])
 
         comm.Reduce( [maxDensityLocal, MPI.DOUBLE],[maxDensity, MPI.DOUBLE] , op=MPI.MAX,root=root )
-        
+
+
         if comm.Get_rank() == root:
             return maxDensity[0]
         

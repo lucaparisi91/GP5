@@ -16,8 +16,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "")
 include(init.cmake)
 
 
+
 add_subdirectory(pybind11)
 
+find_package(Python 3.6 COMPONENTS Interpreter Development REQUIRED)
 
 
 add_subdirectory(src)
