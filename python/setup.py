@@ -27,7 +27,7 @@ class CMakeBuild(build_ext):
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}",
             f"-DPYTHON_EXECUTABLE={sys.executable}",
-            f"-DCMAKE_BUILD_TYPE=RELEASE",  # not used on MSVC, but no harm
+            f"-DCMAKE_BUILD_TYPE=RELEASE"
         ]
 
         build_args = []
@@ -52,5 +52,5 @@ setup(
     zip_safe=False,
     python_requires=">=3.6",
     packages=["gp"],
-
+    install_requires=[ "numpy" ]
 )
