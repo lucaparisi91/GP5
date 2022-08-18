@@ -8,9 +8,9 @@ In order to install the packages you will need python and CMake. The following l
 - P3DFFT++
 You will also need to ave installed the mpi4py package.
 The package can be installed with setuptools. 
-'''
+```
 export CXX=mpicxx
 cd python
 python setup.py install
-'''
+```
 
