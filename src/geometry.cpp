@@ -228,6 +228,16 @@ void normalize( real_t N, tensor_t & field, int c, std::shared_ptr<discretizatio
                 
 }
 
+void normalize( const std::vector<int> & N, tensor_t & field, std::shared_ptr<discretization> discr)
+{
+    for(int c=0;c<N.size();c++)
+    {
+        normalize(N[c],field,c,discr);
+    }            
+}
+
+
+
 void initGaussian( real_t sigma, std::shared_ptr<discretization> discr, tensor_t & tensor, int comp)
 {
     return initGaussian( {sigma,sigma,sigma},discr,tensor,comp);

@@ -3,12 +3,10 @@
 #include "geometry.h"
 #include "constraint.h"
 
-
 namespace gp
 {
     class stepper
     {
-
         public:
 
         stepper();
@@ -35,10 +33,8 @@ namespace gp
 
         complex_t timeStep() const  { return _timeStep;}
 
-        
-
         auto getFunctional() { return _func;}
-        
+
         void setFunctional(std::shared_ptr<functional_t> func) {_func=func;}
         virtual void setNComponents(int n) {_nComponents=n;}
         auto nComponents(){return _nComponents;}
@@ -51,7 +47,11 @@ namespace gp
         auto getConstraint() const {return _constraint; }
         
         void  setConstraint(std::shared_ptr<constraint> constr) { _constraint=constr; }
-        
+
+
+        protected:
+
+        void normalize(tensor_t & field);
 
         private:
 
@@ -62,9 +62,10 @@ namespace gp
         std::vector<real_t> _normalizations;
         std::shared_ptr<discretization> _discr;
         bool _reNormalize;
-
         std::shared_ptr<constraint> _constraint;
+    
     };
+
 
     class euleroStepper : public stepper
     {
@@ -77,7 +78,6 @@ namespace gp
         private:
 
     };
-
 
     class RK4Stepper : public stepper
     {

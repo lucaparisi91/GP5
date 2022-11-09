@@ -4,11 +4,12 @@ from mpi4py  import  MPI
 import numpy as np
 import os
 from pathlib import Path
-
+from netCDF4 import Dataset
+import re
 
 class geometry:
-    def __init__( self,shape,left=[-1,-1,-1],right=[1,1,1]):
 
+    def __init__( self,shape,left=[-1,-1,-1],right=[1,1,1]):
         self._geometryCpp=gpCpp.geometry( left, right,shape)
 
     @property
@@ -24,7 +25,7 @@ class geometry:
     @property
     def spaceStep(self):
         return [ (self.right[d] - self.left[d] )/ self.shape[d] for d in range(len(self.shape)) ]
-
+    
 
 class field:
     def __init__(self,
@@ -76,10 +77,7 @@ class field:
     def offset(self):
         return self._fieldCpp.getOffset()
     
-
-    
-    
-    def grid(self):
+    def grid( self ):
         meshShape=self.localShape 
         left=self._geometry.left
         right=self._geometry.right
@@ -95,15 +93,70 @@ class field:
         X=grids[0]
         Y=grids[1]
         Z=grids[2]
-
+        
         return X,Y,Z
 
 
-    def save(self,filename):
+    def save(self,filename,format=None):
+        if format is None:
+            if re.match(".*\.nc$",filename) is not None:
+                format="netCDF4"
+            else:
+                if re.match(".*\.hdf5$",filename) is not None:
+                    format="hdf5"
+                else:
+                    if re.match(".*\.h5$",filename) is not None:
+                        format="hdf5"                 
+
+        if format is None :
+            return RuntimeError("Could not guess format.")
+        else:
+            if format == "netCDF4":
+                self.saveNetCDF( filename )
+            else:
+                if format == "hdf5":
+                    self.saveHDF5( filename )
+                else:
+                    return RuntimeError("Unkown format {}".format(filename) )
+        
+
+        
+        
+
+    def saveHDF5(self,filename):
         dir=Path(os.path.dirname(filename) )
         dir.mkdir(parents=True,exist_ok=True)
         
         self._fieldCpp.save(filename)
+
+    def saveNetCDF(self,filename):
+        '''
+        Saves the density (rho) and the phase (phi) of the field psi on a file.
+        '''
+        dir=Path(os.path.dirname(filename) )
+        dir.mkdir(parents=True,exist_ok=True)
+
+        psi=self.array
+        rho=np.abs(psi)**2
+        rootgrp = Dataset(filename, "w")
+        xDim=rootgrp.createDimension("X", psi.shape[0])
+        yDim=rootgrp.createDimension("Y", psi.shape[1])
+        zDim=rootgrp.createDimension("Z", psi.shape[2])
+
+        for c in range(psi.shape[3]):
+            rhoVar= rootgrp.createVariable("rho{:d}".format(c),"f8",("X","Y","Z"))
+            rhoVar[:,:,:]=rho[:,:,:,c]
+            rhoVar.units="K"
+
+        phi=np.angle(psi)
+        for c in range(psi.shape[3]):
+            
+            phiVar= rootgrp.createVariable("phi{:d}".format(c),"f8",("X","Y","Z"))
+            phiVar[:,:,:]=phi[:,:,:,c]
+            phiVar.units="K"
+        rootgrp.close()
+
+    
     def load(self,filename):
         self._fieldCpp.load( filename)
     
