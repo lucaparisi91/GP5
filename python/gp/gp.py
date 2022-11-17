@@ -7,11 +7,12 @@ from pathlib import Path
 from netCDF4 import Dataset
 import re
 
+
 class geometry:
 
     def __init__( self,shape,left=[-1,-1,-1],right=[1,1,1]):
         self._geometryCpp=gpCpp.geometry( left, right,shape)
-
+    
     @property
     def left(self):
         return self._geometryCpp.getLeft()
@@ -26,6 +27,7 @@ class geometry:
     def spaceStep(self):
         return [ (self.right[d] - self.left[d] )/ self.shape[d] for d in range(len(self.shape)) ]
     
+
 
 class field:
     def __init__(self,
@@ -93,9 +95,8 @@ class field:
         X=grids[0]
         Y=grids[1]
         Z=grids[2]
-        
-        return X,Y,Z
 
+        return X,Y,Z
 
     def save(self,filename,format=None):
         if format is None:
@@ -177,11 +178,10 @@ class LHY:
         return self._funcCpp.nComponents()
 
 
-
 class stepper:
     def __init__(self,model, timeStep,name="RK4",imaginary=True,renormalize=False):
         """
-        name: str, allowed : RK4,eulero
+        name: str, allowed : RK4, Eulero
         """
         self._timeStep=timeStep
         self._name=name
@@ -195,7 +195,8 @@ class stepper:
 
     def setRenormalization(self,N):
         self._stepperCpp.setRenormalization(N)
-    
+
+
     def advance( self,psi, nSteps=1):
                 self._stepperCpp.advance(psi._fieldCpp,nSteps)
     @property

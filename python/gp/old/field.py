@@ -29,10 +29,12 @@ def save(file,y):
         raw[:,:,:,:,1]=np.imag(yt)
         f["field"][:,:,:,:]=raw
 
-
+from netCDF4 import Dataset
+import numpy as np
 def saveNetCDF(psi,filename):
     '''
-    Saves the density (rho) and the phase (phi) of the field psi on a file.
+    Saves the density (rho) and the phase (phi) of the field psi on a file with name filename
+    psi : 4D complex array ( x,y,z, component ) 
     '''
 
     rho=np.abs(psi)**2

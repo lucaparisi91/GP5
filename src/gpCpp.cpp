@@ -12,7 +12,7 @@ namespace py = pybind11;
 #include "functional.h"
 #include "stepper.h"
 #include "io.h"
-
+#include "cluster.h"
 namespace pyInterface
 {
     class geometry
@@ -137,6 +137,8 @@ class field
 
     auto getFFTOp() {return _fftOp; }
 
+
+
     private:
     
     std::shared_ptr<gp::domain> _domain;
@@ -168,6 +170,10 @@ class model
 
     }
 };
+
+
+
+
 
 class LHY : public model
 {
@@ -258,7 +264,7 @@ class timeStepper
             t+=_timeStep;
         }
         field.setState(_oldState);
-        
+
         
     }
 
@@ -280,7 +286,43 @@ class timeStepper
 
 };
 
+class decomposition
+{
+    public:
+
+    
+    auto decompose(field & psi, real_t densityCutOff)
+    {
+        auto state = psi.getState();
+
+        auto & dimensions = state->dimensions();
+
+        _decomposition=std::make_shared< Eigen::Tensor<int,DIMENSIONS+1> >();
+        _decomposition->resize(dimensions);
+
+        gp::decompose::decompose(*state,densityCutOff,*_decomposition);
+
+        return toArray(*_decomposition);
+
+    }
+
+private:
+
+    std::shared_ptr<Eigen::Tensor<int,DIMENSIONS+1> > _decomposition;
+
+};
+
+
+
+
+
+
 }
+
+
+
+
+
 
 PYBIND11_MODULE(gpCpp, m) {
      py::class_<pyInterface::geometry>(m, "geometry")
@@ -304,6 +346,10 @@ PYBIND11_MODULE(gpCpp, m) {
      ;
     py::class_<pyInterface::model>(m, "model")
     .def("apply",&pyInterface::model::apply);
+
+
+    py::class_<pyInterface::decomposition>(m, "decomposition")
+    .def("decompose",&pyInterface::decomposition::decompose);
 
 
     py::class_<pyInterface::LHY,pyInterface::model>(m, "LHY")

@@ -24,3 +24,4 @@ find_package(Python 3.6 COMPONENTS Interpreter Development REQUIRED)
 
 add_subdirectory(src)
 add_subdirectory(tst)
+add_subdirectory(petsc)

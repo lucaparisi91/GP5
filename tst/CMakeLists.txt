@@ -32,7 +32,7 @@ include(GoogleTest)
 
 # include(GoogleTest)
 
-add_executable(tst main_test.cpp geometry_test.cpp io_test.cpp  fft_test.cpp functional_test.cpp)
+add_executable(tst main_test.cpp geometry_test.cpp io_test.cpp  fft_test.cpp functional_test.cpp cluster_test.cpp)
 target_link_libraries(tst PRIVATE gtest)
 target_link_libraries(tst PUBLIC gp_lib)
 
