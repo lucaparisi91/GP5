@@ -27,15 +27,13 @@ void setMatrix( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
       globalShape[0]=info.mx;
       globalShape[1]=info.my;
       globalShape[2]=info.mz;
-
    }
    
    for(int d=0;d< DIMENSIONS ;d++)
       {
          spaceStep[d]=(rightBox[d]-leftBox[d] )/globalShape[d];
       }
-   
-
+      
    
 
    DMDAGetCorners( da, &(left[0]), &(left[1]), &(left[2]), &(shape[0]), &(shape[1]),  &(shape[2]) );
@@ -416,7 +414,7 @@ int main(int argc, char **args)
    PetscObjectSetName((PetscObject)X,"solution" );
    VecView( X , HDF5viewer);
 
-   
+
 
 
    PetscCall(VecDestroy(&X));
