@@ -172,13 +172,11 @@ void setMatrixLocal11( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox, Ve
       globalShape[1]=info.my;
       globalShape[2]=info.mz;
    }
-   
 
    for(int d=0;d< DIMENSIONS ;d++)
       {
          spaceStep[d]=(rightBox[d]-leftBox[d] )/globalShape[d];
-      }   
-
+      }
 
    for(int i=info.xs;i<info.xs + info.xm;i++)
       for(int j=info.ys;j<info.ys + info.ym;j++)
@@ -221,7 +219,7 @@ void setMatrixLocal11( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox, Ve
 
 int main( int argc,char** args)
 {
-   PetscInt    shape[3] { 20, 20 , 20 };
+   PetscInt    shape[3] { 100, 100 , 100 };
    PetscMPIInt size;
    PetscReal left[3] { -5,-5,-5};
    PetscReal right[3]{ 5, 5, 5 };
@@ -306,6 +304,8 @@ int main( int argc,char** args)
    
    DMCreateMatrix(da, &H );
    MatMPIAIJSetPreallocation(H, 8, NULL, 1 , NULL);
+   MatSeqAIJSetPreallocation(H, 8, NULL );
+
 
 
    //MatSetOption(H, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_FALSE);
@@ -343,17 +343,16 @@ int main( int argc,char** args)
    MatGetLocalSubMatrix(H, is[1], is[0], &(Bs[2] ) );
    setMatrixLocal10(da_u,Bs[2],left,right,H01DL);
    MatRestoreLocalSubMatrix(H, is[1], is[0], &(Bs[2])); 
-
+   
 
    PetscCall( DMRestoreLocalVector(da,&H00DL) );
    PetscCall( DMRestoreLocalVector(da,&H01DL) );
-   
    
    std::cout << "Assembly" << std::endl;
    MatAssemblyBegin(H, MAT_FINAL_ASSEMBLY);
    MatAssemblyEnd(H, MAT_FINAL_ASSEMBLY);
 
-    
+
   /*  DMSetMatType(da, MATAIJ);
    DMCreateMatrix(da, &(Bs[0]) );
    DMCreateMatrix(da, &(Bs[3]) );
@@ -387,8 +386,7 @@ int main( int argc,char** args)
    PetscViewerDestroy(&ASCIIviewer);
 
 
-
-   /*
+   
    std::cout << "evp init" << std::endl;
 
    PetscCall(EPSCreate(PETSC_COMM_WORLD,&eps));
@@ -401,20 +399,17 @@ int main( int argc,char** args)
     PetscInt nconv;
     PetscCall(EPSGetConverged(eps,&nconv));
     PetscCall(PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %" PetscInt_FMT "\n\n",nconv));
-    
+
 
     for(int i=0;i<nconv;i++)
     {
         PetscScalar eigr, eigi;
         EPSGetEigenvalue(eps,i, & eigr, & eigi);
         std::cout << "Eig "<< i << ":" << eigr << " " << eigi << std::endl;
-    } 
-
+    }
 
    PetscCall(EPSDestroy(&eps));
 
-
-   */
     
     //PetscCall(MatDestroy(&H));
     //PetscCall(DMDestroy(&da));

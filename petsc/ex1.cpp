@@ -110,12 +110,10 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
 
    PetscScalar spaceStepInverse2[DIMENSIONS];
 
-
    for(int d=0;d<DIMENSIONS;d++)
    {
       spaceStepInverse2[d]=1/(wave->spaceStep[d] * wave->spaceStep[d] );
    }
-
 
    for(int i=left[0];i<left[0] + shape[0];i++)
       for(int j=left[1];j<left[1] + shape[1];j++)
@@ -168,7 +166,7 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
 int main(int argc, char **args)
 {
 
-   PetscInt    shape[3] { 20, 20, 20 };
+   PetscInt    shape[3] { 100, 100, 100 };
    PetscMPIInt size;
    PetscReal left[3] { -5,-5,-5};
    PetscReal right[3]{ 5, 5, 5 };
