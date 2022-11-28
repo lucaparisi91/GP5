@@ -13,7 +13,7 @@ namespace gp
         {
             return i<0 ? i+L : ( i>=L ? i- L : i  ) ;
         }
-
+        
 
         void decompose( const tensor_t & psi, real_t cutOff,Eigen::Tensor<int,DIMENSIONS+1> & decomposition,int component)
         {

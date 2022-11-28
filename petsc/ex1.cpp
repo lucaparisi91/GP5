@@ -7,7 +7,9 @@
 #include <iostream>
 #include <petscsnes.h>
 #include "model.h"
+#include "petscsys.h" 
 
+class sphericalIntegrator;
 
 struct petscWave
 {
@@ -18,7 +20,73 @@ struct petscWave
    PetscReal mu;
    Vec diagonalTMP;
    PetscScalar g;
+   sphericalIntegrator* integrator;
 };
+PetscErrorCode fillSpacePositions1D(DM da, Vec X, const PetscReal* left, const PetscReal* right )
+{
+   PetscScalar * _X;
+   DMDALocalInfo info;
+   PetscReal spaceStep[1];
+   DMDAGetLocalInfo(da, &info);
+
+   spaceStep[0]=(right[0]-left[0] )/info.mx;
+   
+   PetscCall( DMDAVecGetArray(da, X , &_X ) );
+
+   
+   for(int i=info.xs;i<info.xs + info.xm ; i++)
+      {
+
+         _X[i] = left[0] + ( i+0.5 )*spaceStep[0];
+      }   
+
+   PetscCall(DMDAVecRestoreArray(da,X,&_X) );
+   PetscCall(VecAssemblyBegin(X));
+   PetscCall(VecAssemblyEnd(X));   
+
+   return 0;
+
+}
+
+
+class sphericalIntegrator
+{
+   public:
+
+   sphericalIntegrator( DM da, PetscReal left, PetscReal right) : _da(da) {
+      DMCreateGlobalVector(da,&_r2) ;
+      DMCreateGlobalVector(da,&_tmp) ;
+      fillSpacePositions1D(da,_r2,&left,&right);
+      VecPointwiseMult(_r2,_r2,_r2);
+
+      DMDALocalInfo info;
+      DMDAGetLocalInfo(da, &info);
+
+      _dx=(right-left )/info.mx;
+
+   }
+
+
+   auto integrate(Vec psi)
+   {
+      PetscScalar integ;
+      VecPointwiseMult(_tmp,psi,_r2);
+      VecSum(_tmp, &integ );
+      return integ*4*M_PI*_dx;
+   }
+
+   auto getSpaceStep(){return _dx; }
+   
+
+   private:
+
+   PetscReal _dx;
+   Vec _r2;
+   Vec _tmp;
+   DM _da;
+
+};
+
 
 PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void * ctx )
 {
@@ -51,10 +119,9 @@ PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void * ctx )
       for(int j=left[1];j<left[1] + shape[1];j++)
          for(int k=left[2];k<left[2] + shape[2];k++)
          {
-            _d[k][j][i] += 3*g*_x[k][j][i] * _x[k][j][i]  ;
+            _d[k][j][i] = 3*g*_x[k][j][i] * _x[k][j][i]  ;
          }
-
-
+   
 
    PetscCall(DMDAVecRestoreArrayRead(da,x, &_x) );
    PetscCall(DMDAVecRestoreArray(da,Jctx->diagonalTMP, &_d) );
@@ -68,10 +135,57 @@ PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jac, Mat B, void * ctx )
    
    MatCopy(Jctx->J0, B , SAME_NONZERO_PATTERN );   
 
+   return 0;
+}
+
+PetscErrorCode FormJacobianSpherical(SNES snes, Vec x, Mat jac, Mat B, void * ctx )
+{
+   PetscInt left[DIMENSIONS];
+   PetscInt right[DIMENSIONS];
+   PetscInt shape[DIMENSIONS];
+   DMDALocalInfo info;
+   DM da;
+   SNESGetDM(snes,&da);
+   DMDAGetLocalInfo(da, &info);
+   
+   auto Jctx = ( petscWave *) ctx;
+
+   std::cout << "J: " << Jctx->mu << std::endl;
+
+   MatCopy(Jctx->J0, jac , SAME_NONZERO_PATTERN );   
+
+   VecSet(Jctx->diagonalTMP, -Jctx->mu);
+
+   // add the nonlinear term to the diagonal
+   PetscScalar * _x;
+   PetscScalar * _d;
+   auto g = Jctx->g;
+
+
+   PetscCall(DMDAVecGetArrayRead(da,x, &_x) );
+   PetscCall(DMDAVecGetArray(da,Jctx->diagonalTMP, &_d) );
+
+   for(int i=info.xs;i<info.xs + info.xm;i++)
+         {
+            _d[i] = 3* g*_x[i] * _x[i]  ;
+         }
+
+   PetscCall(DMDAVecRestoreArrayRead(da,x, &_x) );
+   PetscCall(DMDAVecRestoreArray(da,Jctx->diagonalTMP, &_d) );
+
+
+   MatDiagonalSet(jac,Jctx->diagonalTMP,ADD_VALUES);
+
+   
+   MatCopy(Jctx->J0, B , SAME_NONZERO_PATTERN );   
+
 
 
    return 0;
 }
+
+
+
 
 PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
 {
@@ -137,7 +251,6 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
 
    PetscCall(DMDAVecRestoreArrayRead(da,x, &_x) );
    PetscCall(DMRestoreLocalVector(da, &x) );
-
    
    PetscCall(DMDAVecRestoreArray(da, Y , &_y) );
    PetscScalar mu;
@@ -146,13 +259,11 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
    VecDot(Y,X,&mu);
    VecNorm(X,NORM_2 , &waveNorm);
 
-
    mu=mu/(waveNorm*waveNorm);
 
    VecAXPY(Y,-mu,X);     
    wave->mu = mu;
    std::cout << mu << std::endl;
-
 
    return 0;
 
@@ -160,56 +271,92 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
 
 }
 
-
-
-
-int main(int argc, char **args)
+PetscErrorCode FormFunctionSpherical( SNES snes, Vec X, Vec Y , void * ctx )
 {
-
-   PetscInt    shape[3] { 100, 100, 100 };
-   PetscMPIInt size;
-   PetscReal left[3] { -5,-5,-5};
-   PetscReal right[3]{ 5, 5, 5 };
-   PetscReal spaceStep[3];
-
-
-   for(int d=0;d<3;d++)
-   {
-      spaceStep[d]=(right[d]-left[d])/shape[d];
-   }
-
-   PetscCall(PetscInitialize(&argc, &args, (char *)0, NULL));
-   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
-   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "This is a uniprocessor example only!");
-
-   Vec  X,x;
    DM da;
-   PetscScalar ***_X;
-   PetscInt mstart,nstart,pstart,m,n,p;
-   Mat H;
+   PetscCall(SNESGetDM(snes, &da));
+   Vec x;
+
+   petscWave * wave = (petscWave *)(ctx);
+
+   auto g = wave->g;
+
+   PetscCall( DMGetLocalVector(da,&x) );
+   PetscCall( DMGlobalToLocalBegin(da, X, INSERT_VALUES, x));
+   PetscCall( DMGlobalToLocalEnd(da, X, INSERT_VALUES, x) );
+
+
+   PetscScalar * _x;
+   PetscScalar * _y;
+
+   DMDALocalInfo info;
+
+   DMDAGetLocalInfo(da, &info);
+
+   PetscCall(DMDAVecGetArrayRead(da,x, &_x) );
+   PetscCall(DMDAVecGetArray(da, Y , &_y) );
+
+
+
+   auto spaceStepInverse2=1/(wave->spaceStep[0] * wave->spaceStep[0] );
+
+   _x[-1]=_x[0];
+   _x[info.mx]=_x[info.mx-1];
+
+   for(int i=info.xs;i<info.xs + info.xm ;i++ )
+         {
+
+            auto x = wave->left[0] + ( i+ 0.5 )*wave->spaceStep[0];
+
+            _y[i]=  _x[i]* ( spaceStepInverse2 + 0.5*( x * x  ) ) 
+            - _x[i-1]*0.5*( spaceStepInverse2 - 1./(wave->spaceStep[0] * x) )- _x[i+1]* 0.5 *( spaceStepInverse2  + 1./(wave->spaceStep[0] * x) )
+            + g * (_x[i] * _x[i] * _x[i]  );
+             ;
+         }
+
+
+   PetscCall(DMDAVecRestoreArrayRead(da,x, &_x) );
+   PetscCall(DMRestoreLocalVector(da, &x) );
+   
+   PetscCall(DMDAVecRestoreArray(da, Y , &_y) );
+   PetscScalar mu;
+   PetscScalar waveNorm;
+
+   VecPointwiseMult(wave->diagonalTMP,Y,X);
+
+   mu=wave->integrator->integrate(wave->diagonalTMP);
+   VecPointwiseMult(wave->diagonalTMP,X,X);
+   waveNorm=wave->integrator->integrate(wave->diagonalTMP) ;
+   mu=mu/waveNorm;
+
+   VecAXPY(Y,-mu,X);     
+
+   wave->mu=mu;
+
+   std::cout << mu << std::endl;
+   std::cout << "norm: " << waveNorm << std::endl;
    
 
-   //PetscCall(PetscOptionsGetInt(NULL, NULL, "-n", &n, NULL));
+   return 0;
 
-   // initialize discretization
-   PetscCall( 
-      DMDACreate3d(PETSC_COMM_WORLD, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DMDA_STENCIL_STAR, shape[0], shape[1], shape[2], PETSC_DECIDE, PETSC_DECIDE, PETSC_DECIDE, 1 , 1, NULL, NULL, NULL, &da)
-   );
-   //PetscCall(DMDACreate2d(PETSC_COMM_WORLD, DM_BOUNDARY_NONE, DM_BOUNDARY_NONE, DMDA_STENCIL_STAR, 4, 4, PETSC_DECIDE, PETSC_DECIDE, 4, 1, 0, 0, &da));
+}
 
+PetscErrorCode initializeGaussian3D(PetscReal alpha, DM da, Vec X, const PetscReal* left, const PetscReal* right )
+{
+   PetscScalar *** _X;
+   DMDALocalInfo info;
+   PetscReal spaceStep[3];
+   DMDAGetLocalInfo(da, &info);
 
-   PetscCall(DMSetFromOptions(da));
-   PetscCall(DMSetUp(da));
-   DMDASetUniformCoordinates(da, left[0], right[0], left[1], right[1], left[2],right[2] );
+   spaceStep[0]=(right[0]-left[0] )/info.mx;
+   spaceStep[1]=(right[1]-left[1] )/info.my;
+   spaceStep[2]=(right[2]-left[2] )/info.mz;
 
-   // initialize starting vector
-   PetscCall(DMCreateGlobalVector(da,&X));
-   PetscCall(DMDAVecGetArray(da,X, &_X) );
-   PetscCall( DMDAGetCorners(da, &mstart, &nstart, &pstart, &m, &n, &p) );
+   PetscCall( DMDAVecGetArray(da, X , &_X ) );
 
-   for(int i=mstart;i<mstart + m ; i++)
-      for(int j=nstart;j<nstart + n; j++)
-         for(int k=pstart;k<pstart + p; k++)
+   for(int i=info.xs;i<info.xs + info.xm ; i++)
+      for(int j=info.ys;j<info.ys + info.ym ; j++)
+         for(int k=info.zs;i<info.zs + info.zm ; k++)
          {
             auto x = left[0] + ( i+0.5 )*spaceStep[0];
             auto y = left[1] + ( j+0.5 )*spaceStep[1];
@@ -217,24 +364,132 @@ int main(int argc, char **args)
 
             auto r2 = x*x + y*y + z*z;
 
-            _X[k][j][i]=exp(-r2/(2*2*2) );
+            _X[k][j][i]=exp(-r2* alpha );
          }
-   
-  
 
 
    PetscCall(DMDAVecRestoreArray(da,X,&_X) );
    PetscCall(VecAssemblyBegin(X));
    PetscCall(VecAssemblyEnd(X));   
 
+   return 0;
+
+}
+
+PetscErrorCode initializeGaussian1D(PetscReal alpha, DM da, Vec X, const PetscReal* left, const PetscReal* right )
+{
+   PetscScalar * _X;
+   DMDALocalInfo info;
+   PetscReal spaceStep[1];
+   DMDAGetLocalInfo(da, &info);
+
+   spaceStep[0]=(right[0]-left[0] )/info.mx;
+
+
+   PetscCall( DMDAVecGetArray(da, X , &_X ) );
+
+   for(int i=info.xs;i<info.xs + info.xm ; i++)
+         {
+            auto x = left[0] + ( i+0.5 )*spaceStep[0];
+            _X[i]=exp(-x*x* alpha );
+         }
+
+
+   PetscCall(DMDAVecRestoreArray(da,X,&_X) );
+   PetscCall(VecAssemblyBegin(X));
+   PetscCall(VecAssemblyEnd(X));   
+
+   return 0;
+
+}
+
+
+
+void normalize3D( Vec *X, PetscReal N2, PetscReal* spaceStep)
+{
    auto dV = spaceStep[0]*spaceStep[1]*spaceStep[2];
+
    PetscReal norm;
-   VecNorm(X,NORM_2,&norm);
+   VecNorm(*X,NORM_2,&norm);
    norm*=sqrt(dV);
 
+   VecScale(*X, 1/norm );
 
-   VecScale(X, 1/norm );
+}
 
+void normalize1D( Vec *X, PetscReal N2, PetscReal* spaceStep, Vec r2)
+{
+   auto dV = spaceStep[0];
+   PetscReal norm;
+   VecNorm(*X,NORM_2,&norm);
+   norm*=sqrt(dV);
+   VecScale(*X, 1/norm );
+}
+
+
+
+
+
+
+PetscErrorCode  createDM3D(DM * da, PetscInt * shape)
+{
+   PetscCall( 
+      DMDACreate3d(PETSC_COMM_WORLD, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DM_BOUNDARY_PERIODIC, DMDA_STENCIL_STAR, shape[0], shape[1], shape[2], PETSC_DECIDE, PETSC_DECIDE, PETSC_DECIDE, 1 , 1, NULL, NULL, NULL, da)
+   );
+   PetscCall(DMSetFromOptions(*da));
+   PetscCall(DMSetUp(*da));
+
+   return 0;
+}
+
+
+PetscErrorCode  createDMSpherical(DM * da, PetscInt * shape)
+{
+   PetscCall( 
+      DMDACreate1d(PETSC_COMM_WORLD , DM_BOUNDARY_GHOSTED, shape[0], 1, 1, NULL, da) );
+   PetscCall(DMSetFromOptions(*da));
+   PetscCall(DMSetUp(*da));
+
+   return 0;
+}
+
+
+int main(int argc, char **args)
+{
+   const int dimensions=1;
+
+   PetscInt    shape[1] { 1000  };
+   PetscMPIInt size;
+   PetscReal left[1] { 0 };
+   PetscReal right[1]{ 10  };
+   PetscReal spaceStep[1];
+
+
+   for(int d=0;d<dimensions;d++)
+   {
+      spaceStep[d]=(right[d]-left[d])/shape[d];
+   }
+
+
+   PetscCall(PetscInitialize(&argc, &args, (char *)0, NULL));
+   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "This is a uniprocessor example only!");
+   Vec X;
+   DM da;
+   Mat H;
+  
+   createDMSpherical(&da,shape);
+
+   Vec density;
+   // initialize starting vector
+   PetscCall( DMCreateGlobalVector(da,&X) );
+   PetscCall( DMCreateGlobalVector(da,&density) );
+
+   initializeGaussian1D(1./(2 * 0.5), da, X,left,right);
+   sphericalIntegrator integ(da,0,right[0] );
+   VecPointwiseMult(density,X,X);
+   auto norm = integ.integrate(density);
+   VecScale(X,sqrt(1./norm));
 
    PetscViewer HDF5viewer;
    PetscViewerHDF5Open(PETSC_COMM_WORLD, "X.hdf5", FILE_MODE_WRITE, &HDF5viewer);
@@ -247,21 +502,8 @@ int main(int argc, char **args)
    PetscViewer ASCIIviewer;
    PetscViewerASCIIOpen(PETSC_COMM_WORLD, "M.txt", &ASCIIviewer);
    PetscViewerPushFormat(ASCIIviewer, PETSC_VIEWER_ASCII_DENSE);
-   
-
- /*   DMSetMatType(da, MATAIJ);
-   DMCreateMatrix(da, &H);
-   std::cout << "build up matrix" << std::endl;
-   setMatrix(da,H,left,right); */
-   //MatView(H, ASCIIviewer);
 
 
-   Vec Y;
-   VecDuplicate(X,&Y);
-   VecSet(Y, 0.);   
-
-
-   
    petscWave wave;
    for(int d=0;d<DIMENSIONS;d++)
    {
@@ -269,11 +511,15 @@ int main(int argc, char **args)
       wave.right[d]=right[d];
       wave.spaceStep[d]=spaceStep[d];
       wave.mu=0;
-      wave.g=1;
+      wave.g=0;
+      wave.integrator=&integ;
+
    }
 
-
+   Vec Y;
    VecDuplicate(X, &(wave.diagonalTMP) );
+   VecDuplicate(X, &(Y) );
+
 
    SNES snes;
    PetscCall( SNESCreate( PETSC_COMM_WORLD, &snes));
@@ -285,26 +531,41 @@ int main(int argc, char **args)
    DMCreateMatrix(da, &J);
    DMCreateMatrix(da, &(wave.J0) );
 
-   setMatrix( da, J , left, right );
+   setMatrixSpherical( da, J , left, right );
    
    MatCopy(J,wave.J0,DIFFERENT_NONZERO_PATTERN);
 
+   FormFunctionSpherical( snes, X, Y , &wave );
 
-   PetscCall( SNESSetFunction(snes,Y,&FormFunction, & wave) );
-   PetscCall( SNESSetJacobian(snes, J , J ,&FormJacobian, & wave) );
+
+
+   //PetscObjectSetName((PetscObject)Y,"evaluation" );
+   //VecView(Y, HDF5viewer);
+
+
+   PetscCall( SNESSetFunction(snes,X,&FormFunctionSpherical, & wave) );
+   PetscCall( SNESSetJacobian(snes, J , J ,&FormJacobianSpherical, & wave) );
    PetscCall(SNESSetFromOptions(snes));
 
 
-   PetscCall(SNESSolve(snes, NULL, X));
+   
+   VecCopy(X,Y);
+   PetscCall(SNESSolve(snes, NULL, Y));
+
+   PetscObjectSetName((PetscObject)Y,"solution" );
+   VecView(Y, HDF5viewer);
+
+
    
    //std::cout << "evaluate" << std::endl;
 
    //FormFunction(snes,X,Y,&wave);
-
+   
    //std::cout << "evaluate J" << std::endl;
-   //FormJacobian(snes, X , J, J, &jCtx );
-
-
+   FormJacobianSpherical(snes, Y , J, J, &wave  );
+   MatMult( J, X, Y );
+   PetscObjectSetName((PetscObject)Y,"JY" );
+   VecView(Y, HDF5viewer);
 
 
    
@@ -314,17 +575,12 @@ int main(int argc, char **args)
    //MatView(J , ASCIIviewer );
 
 
-   PetscObjectSetName((PetscObject)X,"solution" );
-   VecView( X , HDF5viewer);
-
-
-
-
    PetscCall(VecDestroy(&X));
    PetscCall(VecDestroy(&Y));
-   PetscCall(MatDestroy(&H));
+   //PetscCall(MatDestroy(&H));
    PetscViewerDestroy(&HDF5viewer);
    PetscCall(DMDestroy(&da));
+
 
    PetscCall(PetscFinalize());
 

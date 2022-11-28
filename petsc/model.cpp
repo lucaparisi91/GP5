@@ -83,3 +83,87 @@ void setMatrix( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
          MatAssemblyEnd(H, MAT_FINAL_ASSEMBLY);
 
 }
+
+
+void setMatrixSpherical( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
+{
+
+
+   PetscInt left[3];
+   PetscInt shape[3];
+   MatStencil row,col;
+   PetscScalar v;
+   PetscReal spaceStep[3];
+   PetscInt globalShape[3];
+   DMDALocalInfo info;
+   DMDAGetLocalInfo(da, &info);
+
+
+   for(int d=0;d< 1 ;d++)
+      {
+         spaceStep[d]=(rightBox[d]-leftBox[d] )/info.mx;
+      }   
+
+   for( int i=info.xs;i<info.xs + info.xm  ;i++ )
+         {
+            if (i==0)
+            {
+               auto x = leftBox[0] + 0.5*spaceStep[0];
+               v=0.5*x*x + 1/(spaceStep[0]*spaceStep[0]) -1/(2*spaceStep[0]*spaceStep[0]) + 0.5/(x*spaceStep[0]);
+
+
+
+               MatSetValues(H, 1, &i , 1, &i  ,&v, INSERT_VALUES);
+               
+
+               v=-1/(2*spaceStep[0]*spaceStep[0]) - 0.5/(x*spaceStep[0]);   
+
+               auto col = i + 1;
+
+               MatSetValues(H, 1, &i, 1, &col  ,&v, INSERT_VALUES);
+
+            }
+            else if (i==info.xm - 1)
+            {
+               auto x = leftBox[0] + 0.5*spaceStep[0];
+               v=0.5*x*x + 1/(spaceStep[0]*spaceStep[0]) -1/(2*spaceStep[0]*spaceStep[0]) - 0.5/(x*spaceStep[0]);   
+
+
+               MatSetValues(H, 1, &i , 1, &i  ,&v, INSERT_VALUES);
+               
+
+               v=-1/(2*spaceStep[0]*spaceStep[0]) + 0.5/(x*spaceStep[0]);
+               auto col = i - 1;
+               MatSetValues(H, 1, &i, 1, &col  ,&v, INSERT_VALUES);
+               
+            }
+            else
+            {
+
+               auto x = leftBox[0] + ( i+0.5 )*spaceStep[0];
+
+               v=0.5*(x*x ) + 1/(spaceStep[0]*spaceStep[0]);
+
+
+               MatSetValues(H, 1, &i , 1, &i  ,&v, INSERT_VALUES);
+               
+
+               v=-1/(2*spaceStep[0]*spaceStep[0]) + 0.5/(x*spaceStep[0]);
+
+
+               auto col = i - 1;
+
+               MatSetValues(H, 1, &i, 1, &col  ,&v, INSERT_VALUES);
+               col=i+1;
+               v=-1/(2*spaceStep[0]*spaceStep[0]) - 0.5/(x*spaceStep[0]);   
+
+               MatSetValues(H, 1, &i, 1, &col  ,&v, INSERT_VALUES);
+            }
+
+         }
+
+
+         MatAssemblyBegin(H, MAT_FINAL_ASSEMBLY);
+         MatAssemblyEnd(H, MAT_FINAL_ASSEMBLY);
+
+}
