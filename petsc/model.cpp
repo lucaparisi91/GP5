@@ -4,7 +4,6 @@
 void setMatrix( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
 {
 
-
    PetscInt left[3];
    PetscInt shape[3];
    MatStencil row,col;
@@ -18,7 +17,6 @@ void setMatrix( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
       globalShape[1]=info.my;
       globalShape[2]=info.mz;
    }
-   
 
    for(int d=0;d< DIMENSIONS ;d++)
       {
@@ -103,7 +101,7 @@ void setMatrixSpherical( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
       {
          spaceStep[d]=(rightBox[d]-leftBox[d] )/info.mx;
       }   
-
+   
    for( int i=info.xs;i<info.xs + info.xm  ;i++ )
          {
             if (i==0)
@@ -125,9 +123,9 @@ void setMatrixSpherical( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
             }
             else if (i==info.xm - 1)
             {
-               auto x = leftBox[0] + 0.5*spaceStep[0];
-               v=0.5*x*x + 1/(spaceStep[0]*spaceStep[0]) -1/(2*spaceStep[0]*spaceStep[0]) - 0.5/(x*spaceStep[0]);   
+               auto x = leftBox[0] + ( i+0.5 )*spaceStep[0];
 
+               v=0.5*x*x + 1/(spaceStep[0]*spaceStep[0]) -1/(2*spaceStep[0]*spaceStep[0]) - 0.5/(x*spaceStep[0]);   
 
                MatSetValues(H, 1, &i , 1, &i  ,&v, INSERT_VALUES);
                
@@ -162,8 +160,18 @@ void setMatrixSpherical( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
 
          }
 
-
          MatAssemblyBegin(H, MAT_FINAL_ASSEMBLY);
          MatAssemblyEnd(H, MAT_FINAL_ASSEMBLY);
 
+}
+
+
+PetscErrorCode  createDMSpherical(DM * da, PetscInt * shape)
+{
+   PetscCall( 
+      DMDACreate1d(PETSC_COMM_WORLD , DM_BOUNDARY_GHOSTED, shape[0], 1, 1, NULL, da) );
+   PetscCall(DMSetFromOptions(*da));
+   PetscCall(DMSetUp(*da));
+
+   return 0;
 }

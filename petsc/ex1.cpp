@@ -150,11 +150,10 @@ PetscErrorCode FormJacobianSpherical(SNES snes, Vec x, Mat jac, Mat B, void * ct
    
    auto Jctx = ( petscWave *) ctx;
 
-   std::cout << "J: " << Jctx->mu << std::endl;
+   //std::cout << "J: " << Jctx->mu << std::endl;
 
    MatCopy(Jctx->J0, jac , SAME_NONZERO_PATTERN );   
 
-   VecSet(Jctx->diagonalTMP, -Jctx->mu);
 
    // add the nonlinear term to the diagonal
    PetscScalar * _x;
@@ -167,8 +166,9 @@ PetscErrorCode FormJacobianSpherical(SNES snes, Vec x, Mat jac, Mat B, void * ct
 
    for(int i=info.xs;i<info.xs + info.xm;i++)
          {
-            _d[i] = 3* g*_x[i] * _x[i]  ;
+            _d[i] = 3* g*_x[i] * _x[i] -Jctx->mu  ;
          }
+   
 
    PetscCall(DMDAVecRestoreArrayRead(da,x, &_x) );
    PetscCall(DMDAVecRestoreArray(da,Jctx->diagonalTMP, &_d) );
@@ -256,6 +256,7 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
    PetscScalar mu;
    PetscScalar waveNorm;
 
+   
    VecDot(Y,X,&mu);
    VecNorm(X,NORM_2 , &waveNorm);
 
@@ -266,8 +267,6 @@ PetscErrorCode FormFunction( SNES snes,Vec X, Vec Y , void * ctx )
    std::cout << mu << std::endl;
 
    return 0;
-
-
 
 }
 
@@ -284,7 +283,6 @@ PetscErrorCode FormFunctionSpherical( SNES snes, Vec X, Vec Y , void * ctx )
    PetscCall( DMGetLocalVector(da,&x) );
    PetscCall( DMGlobalToLocalBegin(da, X, INSERT_VALUES, x));
    PetscCall( DMGlobalToLocalEnd(da, X, INSERT_VALUES, x) );
-
 
    PetscScalar * _x;
    PetscScalar * _y;
@@ -319,7 +317,8 @@ PetscErrorCode FormFunctionSpherical( SNES snes, Vec X, Vec Y , void * ctx )
    PetscCall(DMRestoreLocalVector(da, &x) );
    
    PetscCall(DMDAVecRestoreArray(da, Y , &_y) );
-   PetscScalar mu;
+
+   /* PetscScalar mu;
    PetscScalar waveNorm;
 
    VecPointwiseMult(wave->diagonalTMP,Y,X);
@@ -327,15 +326,15 @@ PetscErrorCode FormFunctionSpherical( SNES snes, Vec X, Vec Y , void * ctx )
    mu=wave->integrator->integrate(wave->diagonalTMP);
    VecPointwiseMult(wave->diagonalTMP,X,X);
    waveNorm=wave->integrator->integrate(wave->diagonalTMP) ;
+
    mu=mu/waveNorm;
+ */
+   //wave->mu=mu;
+   VecAXPY(Y,-wave->mu ,X);
 
-   VecAXPY(Y,-mu,X);     
 
-   wave->mu=mu;
-
-   std::cout << mu << std::endl;
-   std::cout << "norm: " << waveNorm << std::endl;
-   
+   //std::cout << "mu: "<< mu << std::endl;
+   //std::cout << "norm: " << waveNorm << std::endl;  
 
    return 0;
 
@@ -383,8 +382,7 @@ PetscErrorCode initializeGaussian1D(PetscReal alpha, DM da, Vec X, const PetscRe
    PetscReal spaceStep[1];
    DMDAGetLocalInfo(da, &info);
 
-   spaceStep[0]=(right[0]-left[0] )/info.mx;
-
+   spaceStep[0]=( right[0]-left[0] )/info.mx;
 
    PetscCall( DMDAVecGetArray(da, X , &_X ) );
 
@@ -443,22 +441,13 @@ PetscErrorCode  createDM3D(DM * da, PetscInt * shape)
 }
 
 
-PetscErrorCode  createDMSpherical(DM * da, PetscInt * shape)
-{
-   PetscCall( 
-      DMDACreate1d(PETSC_COMM_WORLD , DM_BOUNDARY_GHOSTED, shape[0], 1, 1, NULL, da) );
-   PetscCall(DMSetFromOptions(*da));
-   PetscCall(DMSetUp(*da));
-
-   return 0;
-}
 
 
 int main(int argc, char **args)
 {
    const int dimensions=1;
 
-   PetscInt    shape[1] { 1000  };
+   PetscInt    shape[1] { 2000  };
    PetscMPIInt size;
    PetscReal left[1] { 0 };
    PetscReal right[1]{ 10  };
@@ -469,7 +458,6 @@ int main(int argc, char **args)
    {
       spaceStep[d]=(right[d]-left[d])/shape[d];
    }
-
 
    PetscCall(PetscInitialize(&argc, &args, (char *)0, NULL));
    PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
@@ -485,24 +473,24 @@ int main(int argc, char **args)
    PetscCall( DMCreateGlobalVector(da,&X) );
    PetscCall( DMCreateGlobalVector(da,&density) );
 
-   initializeGaussian1D(1./(2 * 0.5), da, X,left,right);
+   initializeGaussian1D(1./(2 * 0.1), da, X,left,right);
    sphericalIntegrator integ(da,0,right[0] );
    VecPointwiseMult(density,X,X);
    auto norm = integ.integrate(density);
    VecScale(X,sqrt(1./norm));
 
+   //VecScale(X, -1);
+   //VecShift(X, 1);
+
    PetscViewer HDF5viewer;
    PetscViewerHDF5Open(PETSC_COMM_WORLD, "X.hdf5", FILE_MODE_WRITE, &HDF5viewer);
-   
 
    PetscObjectSetName((PetscObject)X,"init" );
    VecView(X, HDF5viewer);
 
-
    PetscViewer ASCIIviewer;
    PetscViewerASCIIOpen(PETSC_COMM_WORLD, "M.txt", &ASCIIviewer);
    PetscViewerPushFormat(ASCIIviewer, PETSC_VIEWER_ASCII_DENSE);
-
 
    petscWave wave;
    for(int d=0;d<DIMENSIONS;d++)
@@ -510,16 +498,15 @@ int main(int argc, char **args)
       wave.left[d]=left[d];
       wave.right[d]=right[d];
       wave.spaceStep[d]=spaceStep[d];
-      wave.mu=0;
-      wave.g=0;
+      wave.mu=15;
+      wave.g=100;
       wave.integrator=&integ;
-
    }
 
    Vec Y;
    VecDuplicate(X, &(wave.diagonalTMP) );
    VecDuplicate(X, &(Y) );
-
+   VecCopy(X,Y);
 
    SNES snes;
    PetscCall( SNESCreate( PETSC_COMM_WORLD, &snes));
@@ -533,10 +520,8 @@ int main(int argc, char **args)
 
    setMatrixSpherical( da, J , left, right );
    
-   MatCopy(J,wave.J0,DIFFERENT_NONZERO_PATTERN);
-
-   FormFunctionSpherical( snes, X, Y , &wave );
-
+   MatCopy(J,wave.J0,DIFFERENT_NONZERO_PATTERN );
+   //FormFunctionSpherical( snes, X, Y , &wave );
 
 
    //PetscObjectSetName((PetscObject)Y,"evaluation" );
@@ -545,16 +530,85 @@ int main(int argc, char **args)
 
    PetscCall( SNESSetFunction(snes,X,&FormFunctionSpherical, & wave) );
    PetscCall( SNESSetJacobian(snes, J , J ,&FormJacobianSpherical, & wave) );
-   PetscCall(SNESSetFromOptions(snes));
+   PetscCall(SNESSetFromOptions(snes)); 
 
+
+   Vec deltaX;
+   VecDuplicate(X, &(deltaX ) );
+   VecCopy(X,Y);
+   VecSet( deltaX, 0);
+
+   KSP ksp;
+   KSPCreate(PETSC_COMM_WORLD, &ksp);
+   KSPSetFromOptions( ksp );
+   
+   PetscReal N = 1;
+
+   Vec * oldPsi;
+   Vec * newPsi;
+   
+   oldPsi=& Y;
+   newPsi= & X;
+
+   PetscReal dt = 0.1 * spaceStep[0]*spaceStep[0] ;
+   
+   PetscReal error=1e+9;
+
+   while( error > 1e-1 )
+   {
+      for(int tt=0;tt<1000;tt++)
+      {
+         std::swap(oldPsi,newPsi);
+
+         FormFunctionSpherical( snes, *oldPsi, *newPsi , &wave );
+         FormJacobianSpherical(snes, *oldPsi , J, J, &wave  );
+         KSPSetOperators(ksp,J,J);
+
+                  
+         FormFunctionSpherical( snes, *oldPsi, deltaX , &wave );
+         
+         //KSPSolve( ksp, *newPsi , deltaX );
+         VecWAXPY(*newPsi,-1.0*dt,deltaX,*oldPsi);
+
+         //auto waveNorm=wave.integrator->integrate(wave.diagonalTMP);
+         //VecScale( *newPsi, sqrt(N*1./waveNorm) );
+
+      }
+
+      VecPointwiseMult(wave.diagonalTMP,*newPsi,*newPsi);
+      auto waveNorm=wave.integrator->integrate(wave.diagonalTMP);
+
+      FormFunctionSpherical( snes, *newPsi, deltaX , &wave );
+      //VecPointwiseMult(wave.diagonalTMP,deltaX,*newPsi);
+      //auto error=wave.integrator->integrate(wave.diagonalTMP);
+      //error/=waveNorm;
+
+      //VecScale( *newPsi, sqrt(N*1./waveNorm) );
+      //VecWAXPY( deltaX,-1,*oldPsi,*newPsi );
+
+      VecNorm(deltaX,NORM_2,&error);
+      std::cout << "norm: " << waveNorm << std::endl;
+      std::cout << "mu: " << wave.mu << std::endl;
+      std::cout << "error: " << error << std::endl;
+
+   } 
+
+
+   if ( newPsi != &Y)
+   {
+      VecCopy(*newPsi,Y);
+   }
 
    
-   VecCopy(X,Y);
-   PetscCall(SNESSolve(snes, NULL, Y));
+
+   PetscCall(SNESSolve(snes, NULL, Y ) );
 
    PetscObjectSetName((PetscObject)Y,"solution" );
    VecView(Y, HDF5viewer);
 
+   VecPointwiseMult(wave.diagonalTMP,Y,Y);
+   auto waveNorm=wave.integrator->integrate(wave.diagonalTMP);
+   std::cout << "N: " << waveNorm << std::endl;
 
    
    //std::cout << "evaluate" << std::endl;
@@ -562,10 +616,12 @@ int main(int argc, char **args)
    //FormFunction(snes,X,Y,&wave);
    
    //std::cout << "evaluate J" << std::endl;
-   FormJacobianSpherical(snes, Y , J, J, &wave  );
-   MatMult( J, X, Y );
-   PetscObjectSetName((PetscObject)Y,"JY" );
-   VecView(Y, HDF5viewer);
+
+
+   //FormJacobianSpherical(snes, Y , J, J, &wave  );
+   //MatMult( J, X, Y );
+   //PetscObjectSetName((PetscObject)Y,"JY" );
+   //VecView(Y, HDF5viewer);
 
 
    
@@ -574,13 +630,11 @@ int main(int argc, char **args)
    //PetscObjectSetName((PetscObject)J,"J" );
    //MatView(J , ASCIIviewer );
 
-
    PetscCall(VecDestroy(&X));
    PetscCall(VecDestroy(&Y));
    //PetscCall(MatDestroy(&H));
    PetscViewerDestroy(&HDF5viewer);
    PetscCall(DMDestroy(&da));
-
 
    PetscCall(PetscFinalize());
 
