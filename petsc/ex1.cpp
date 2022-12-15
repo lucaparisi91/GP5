@@ -426,9 +426,6 @@ void normalize1D( Vec *X, PetscReal N2, PetscReal* spaceStep, Vec r2)
 
 
 
-
-
-
 PetscErrorCode  createDM3D(DM * da, PetscInt * shape)
 {
    PetscCall( 
@@ -442,17 +439,16 @@ PetscErrorCode  createDM3D(DM * da, PetscInt * shape)
 
 
 
-
 int main(int argc, char **args)
 {
    const int dimensions=1;
 
-   PetscInt    shape[1] { 2000  };
+
+   PetscInt    shape[1] { 1000  };
    PetscMPIInt size;
    PetscReal left[1] { 0 };
-   PetscReal right[1]{ 10  };
+   PetscReal right[1]{ 60  };
    PetscReal spaceStep[1];
-
 
    for(int d=0;d<dimensions;d++)
    {
@@ -473,7 +469,7 @@ int main(int argc, char **args)
    PetscCall( DMCreateGlobalVector(da,&X) );
    PetscCall( DMCreateGlobalVector(da,&density) );
 
-   initializeGaussian1D(1./(2 * 0.1), da, X,left,right);
+   initializeGaussian1D(1./(2 * 1), da, X,left,right);
    sphericalIntegrator integ(da,0,right[0] );
    VecPointwiseMult(density,X,X);
    auto norm = integ.integrate(density);
@@ -498,10 +494,11 @@ int main(int argc, char **args)
       wave.left[d]=left[d];
       wave.right[d]=right[d];
       wave.spaceStep[d]=spaceStep[d];
-      wave.mu=15;
+      wave.mu=200;
       wave.g=100;
       wave.integrator=&integ;
    }
+
 
    Vec Y;
    VecDuplicate(X, &(wave.diagonalTMP) );
@@ -550,11 +547,12 @@ int main(int argc, char **args)
    oldPsi=& Y;
    newPsi= & X;
 
-   PetscReal dt = 0.1 * spaceStep[0]*spaceStep[0] ;
+   PetscReal dt = 0.05 * spaceStep[0]*spaceStep[0] ;
    
+
    PetscReal error=1e+9;
 
-   while( error > 1e-1 )
+   while( error > 1e-2 )
    {
       for(int tt=0;tt<1000;tt++)
       {
@@ -605,6 +603,7 @@ int main(int argc, char **args)
 
    PetscObjectSetName((PetscObject)Y,"solution" );
    VecView(Y, HDF5viewer);
+
 
    VecPointwiseMult(wave.diagonalTMP,Y,Y);
    auto waveNorm=wave.integrator->integrate(wave.diagonalTMP);

@@ -391,7 +391,6 @@ void setMatrixLocal10( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox, Ve
          for(int k=info.zs;k<info.zs + info.xm;k++)
          {
 
-            
             auto v=-_diagAddL[k][j][i];
 
             PetscInt row [1]  { DMDALocalIndex3D(&info, i + 0, j + 0, k + 0) };
@@ -400,8 +399,7 @@ void setMatrixLocal10( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox, Ve
 
          }
 
-         DMDAVecRestoreArrayRead(da, diagAddL, &_diagAddL);
-         
+         DMDAVecRestoreArrayRead(da, diagAddL, &_diagAddL);        
 
 }
 
@@ -625,11 +623,11 @@ int main( int argc,char** args)
         std::cout << "Eig "<< i << ":" << eigr << " " << eigi << std::endl;
     }
 
-   PetscCall(EPSDestroy(&eps));
 
+   PetscCall(EPSDestroy(&eps));
     
-    //PetscCall(MatDestroy(&H));
-    //PetscCall(DMDestroy(&da));
+   //PetscCall(MatDestroy(&H));
+   //PetscCall(DMDestroy(&da));
    PetscCall(SlepcFinalize() ); 
 
 
