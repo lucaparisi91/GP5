@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include(../init.cmake)
 
-add_executable( gs ex1.cpp model.cpp )
+add_executable( gs ex1.cpp model.cpp spherical.cpp evolution.cpp )
 
 add_executable( eigenGP eigenGP.cpp model.cpp)
 
