@@ -1,6 +1,4 @@
-
-
-
+import numpy as np
 
 def kineticEnergyMatrix(x,spherical=False):
     """

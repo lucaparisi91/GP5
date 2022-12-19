@@ -1,8 +1,8 @@
-from hamiltonian import kineticEnergyMatrix
+from . import  hamiltonian
+import numpy as np
 
 import scipy as sp
 from scipy import special
-
 
 def wavefunction(x,n,normalized=False,spherical=False):
     """
@@ -33,11 +33,10 @@ def buildHamiltonian(x,omega=1,spherical=True):
     """
 
     dx=x[1]-x[0]
-    H=kineticEnergyMatrix(x,spherical=spherical)
+    H=hamiltonian.kineticEnergyMatrix(x,spherical=spherical)
     i=np.arange(0,len(x))
     H[i,i]+=0.5*omega**2*x**2
     return H
-
 
 def densityTF(r,g,N):
     R=(15./(4*np.pi) * g * N)**(1/5)
