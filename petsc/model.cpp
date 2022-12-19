@@ -83,6 +83,7 @@ void setMatrix( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
 }
 
 
+
 void setMatrixSpherical( DM da, Mat H, PetscReal* leftBox,PetscReal * rightBox )
 {
 

@@ -599,8 +599,6 @@ int main( int argc,char** args)
    MatView(H, ASCIIviewer);
    PetscViewerDestroy(&ASCIIviewer);
 
-
-
    
    std::cout << "evp init" << std::endl;
 
